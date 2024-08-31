@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "urcu-bp-sys",
+    "urcu-mb-sys",
+    "urcu-memb-sys",
+    "urcu-qsbr-sys",
+    "urcu-sys",
+    "urcu",
+]
+
+[profile.release]
+opt-level = 0
+lto = false
