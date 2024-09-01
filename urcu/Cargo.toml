@@ -1,0 +1,28 @@
+[package]
+name = "urcu"
+license = "GPL-3.0-or-later"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+guardian = "1"
+libc = "0.2"
+log = "0.4"
+paste = "1"
+urcu-bp-sys = { path = "../urcu-bp-sys", optional = true }
+urcu-mb-sys = { path = "../urcu-mb-sys", optional = true }
+urcu-memb-sys = { path = "../urcu-memb-sys", optional = true }
+urcu-qsbr-sys = { path = "../urcu-qsbr-sys", optional = true }
+urcu-sys = { path = "../urcu-sys" }
+
+[features]
+default = [ "flavor-bp", "flavor-mb", "flavor-memb", "flavor-qsbr" ]
+flavor-bp = ["dep:urcu-bp-sys"]
+flavor-mb = ["dep:urcu-mb-sys"]
+flavor-memb = ["dep:urcu-memb-sys"]
+flavor-qsbr = ["dep:urcu-qsbr-sys"]
+
+[dev-dependencies]
+env_logger = "0.11"
+ctrlc = "3"
