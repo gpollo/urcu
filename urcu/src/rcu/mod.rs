@@ -457,3 +457,24 @@ pub(crate) mod qsbr {
         urcu_qsbr_synchronize_rcu
     );
 }
+
+#[cfg(feature = "flavor-memb")]
+pub type DefaultContext = memb::RcuContextMemb;
+
+#[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
+pub type DefaultContext = mb::RcuContextMb;
+
+#[cfg(all(
+    not(feature = "flavor-memb"),
+    not(feature = "flavor-mb"),
+    feature = "flavor-bp"
+))]
+pub type DefaultContext = bp::RcuContextBp;
+
+#[cfg(all(
+    not(feature = "flavor-memb"),
+    not(feature = "flavor-mb"),
+    not(feature = "flavor-bp"),
+    feature = "flavor-qsbr"
+))]
+pub type DefaultContext = qsbr::RcuContextQsbr;
