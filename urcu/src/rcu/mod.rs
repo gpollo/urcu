@@ -51,7 +51,7 @@ pub unsafe trait RcuContext {
     fn rcu_api() -> &'static RcuFlavor;
 }
 
-/// This trait defines an RCU reference that can be owned after a grace period.
+/// This trait defines an RCU reference that can be owned after an RCU grace period.
 ///
 /// #### Note
 ///
@@ -146,63 +146,73 @@ macro_rules! rcu_take_ownership {
     };
 }
 
-macro_rules! define_rcu_guard {
-    ($flavor:literal, $name:ident, $context:ident, $lock:ident, $unlock:ident) => {
-        #[doc = concat!("Defines a guard for an RCU critical section (", $flavor, ").")]
-        #[allow(dead_code)]
-        pub struct $name<'a>(&'a $context);
+macro_rules! urcu_func {
+    ($flavor:ident, $name:ident) => {
+        paste::paste! {
+            [<urcu _ $flavor _ $name>]
+        }
+    };
+}
 
-        impl<'a> $name<'a> {
+macro_rules! define_rcu_guard {
+    ($flavor:ident, $guard:ident, $context:ident) => {
+        #[doc = concat!("Defines a guard for an RCU critical section (`liburcu-", stringify!($flavor), "`).")]
+        #[allow(dead_code)]
+        pub struct $guard<'a>(&'a $context);
+
+        impl<'a> $guard<'a> {
             fn new(context: &'a $context) -> Self {
                 // SAFETY: The RCU region is unlocked upon dropping.
-                unsafe { $lock() }
+                unsafe { urcu_func!($flavor, read_lock)() }
 
                 Self(context)
             }
         }
 
-        impl<'a> Drop for $name<'a> {
+        impl<'a> Drop for $guard<'a> {
             fn drop(&mut self) {
                 // SAFETY: The guard cannot be created without first locking.
-                unsafe { $unlock() }
+                unsafe { urcu_func!($flavor, read_unlock)() }
             }
         }
     };
 }
 
 macro_rules! define_rcu_poller {
-    ($flavor:literal, $name:ident, $context:ident, $start:ident, $poll:ident) => {
-        #[doc = concat!("Defines a grace period poller (", $flavor, ").")]
+    ($flavor:ident, $poller:ident, $context:ident) => {
+        #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
-        pub struct $name<'a>(&'a mut $context, urcu_sys::RcuPollState);
+        pub struct $poller<'a>(&'a mut $context, urcu_sys::RcuPollState);
 
-        impl<'a> $name<'a> {
+        impl<'a> $poller<'a> {
             fn new(context: &'a mut $context) -> Self {
                 // SAFETY: Context will be initialized and we may create multiple poller.
-                Self(context, unsafe { $start() })
+                Self(context, unsafe {
+                    urcu_func!($flavor, start_poll_synchronize_rcu)()
+                })
             }
         }
 
-        impl<'a> RcuPoller for $name<'a> {
+        impl<'a> RcuPoller for $poller<'a> {
             fn grace_period_finished(&self) -> bool {
-                unsafe { $poll(self.1) }
+                unsafe { urcu_func!($flavor, poll_state_synchronize_rcu)(self.1) }
             }
         }
     };
 }
 
 macro_rules! define_rcu_context {
-    ($flavor:literal, $name:ident, $guard:ident, $poller:ident, $api:ident, $init:ident, $register:ident, $unregister:ident, $synchronize:ident) => {
-        #[doc = concat!("Defines an RCU context for the current thread (", $flavor, ").")]
+    ($flavor:ident, $context:ident, $guard:ident, $poller:ident) => {
+        #[doc = concat!("Defines an RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
         ///
         /// #### Note
         ///
         /// There can only be 1 instance per thread.
         /// The thread will be registered upon creation.
         /// It will be unregistered upon dropping.
-        pub struct $name;
+        pub struct $context;
 
-        impl $name {
+        impl $context {
             /// Creates the context instance.
             ///
             /// Only the first call will return a context.
@@ -217,14 +227,14 @@ macro_rules! define_rcu_context {
                         // SAFETY: The registration is only called once per thread.
                         unsafe {
                             log::info!(
-                                "registering thread '{}' ({}) with RCU ({})",
+                                "registering thread '{}' ({}) with RCU (liburcu-{})",
                                 std::thread::current().name().unwrap_or("<unnamed>"),
                                 libc::gettid(),
-                                $flavor,
+                                stringify!($flavor),
                             );
 
-                            $init();
-                            $register();
+                            urcu_func!($flavor, init)();
+                            urcu_func!($flavor, register_thread)();
                         }
 
                         Some(Self)
@@ -235,24 +245,24 @@ macro_rules! define_rcu_context {
             }
         }
 
-        impl Drop for $name {
+        impl Drop for $context {
             fn drop(&mut self) {
                 // SAFETY: The unregistration may only be called once per thread.
                 unsafe {
                     log::info!(
-                        "unregistering thread '{}' ({}) with RCU ({})",
+                        "unregistering thread '{}' ({}) with RCU (liburcu-{})",
                         std::thread::current().name().unwrap_or("<unnamed>"),
                         libc::gettid(),
-                        $flavor,
+                        stringify!($flavor),
                     );
 
-                    $unregister();
+                    urcu_func!($flavor, unregister_thread)();
                 }
             }
         }
 
         // SAFETY: There can only be 1 instance per thread.
-        unsafe impl RcuContext for $name {
+        unsafe impl RcuContext for $context {
             type Guard<'a> = $guard<'a>;
 
             type Poller<'a> = $poller<'a>;
@@ -263,7 +273,7 @@ macro_rules! define_rcu_context {
 
             fn rcu_synchronize(&mut self) {
                 // SAFETY: The method's mutability prevents a read lock while syncronizing.
-                unsafe { $synchronize() }
+                unsafe { urcu_func!($flavor, synchronize_rcu)() }
             }
 
             fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_> {
@@ -271,7 +281,7 @@ macro_rules! define_rcu_context {
             }
 
             fn rcu_api() -> &'static RcuFlavor {
-                &$api
+                &RCU_API
             }
         }
     };
@@ -293,33 +303,11 @@ pub(crate) mod bp {
         RCU_API,
     };
 
-    define_rcu_guard!(
-        "BP",
-        RcuGuardBp,
-        RcuContextBp,
-        urcu_bp_read_lock,
-        urcu_bp_read_unlock
-    );
+    define_rcu_guard!(bp, RcuGuardBp, RcuContextBp);
 
-    define_rcu_poller!(
-        "BP",
-        RcuPollerBp,
-        RcuContextBp,
-        urcu_bp_start_poll_synchronize_rcu,
-        urcu_bp_poll_state_synchronize_rcu
-    );
+    define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
 
-    define_rcu_context!(
-        "BP",
-        RcuContextBp,
-        RcuGuardBp,
-        RcuPollerBp,
-        RCU_API,
-        urcu_bp_init,
-        urcu_bp_register_thread,
-        urcu_bp_unregister_thread,
-        urcu_bp_synchronize_rcu
-    );
+    define_rcu_context!(bp, RcuContextBp, RcuGuardBp, RcuPollerBp);
 }
 
 #[cfg(feature = "flavor-mb")]
@@ -338,33 +326,11 @@ pub(crate) mod mb {
         RCU_API,
     };
 
-    define_rcu_guard!(
-        "MB",
-        RcuGuardMb,
-        RcuContextMb,
-        urcu_mb_read_lock,
-        urcu_mb_read_unlock
-    );
+    define_rcu_guard!(mb, RcuGuardMb, RcuContextMb);
 
-    define_rcu_poller!(
-        "MB",
-        RcuPollerMb,
-        RcuContextMb,
-        urcu_mb_start_poll_synchronize_rcu,
-        urcu_mb_poll_state_synchronize_rcu
-    );
+    define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
 
-    define_rcu_context!(
-        "MB",
-        RcuContextMb,
-        RcuGuardMb,
-        RcuPollerMb,
-        RCU_API,
-        urcu_mb_init,
-        urcu_mb_register_thread,
-        urcu_mb_unregister_thread,
-        urcu_mb_synchronize_rcu
-    );
+    define_rcu_context!(mb, RcuContextMb, RcuGuardMb, RcuPollerMb);
 }
 
 #[cfg(feature = "flavor-memb")]
@@ -375,7 +341,6 @@ pub(crate) mod memb {
         urcu_memb_init,
         urcu_memb_poll_state_synchronize_rcu,
         urcu_memb_read_lock,
-        urcu_memb_read_ongoing,
         urcu_memb_read_unlock,
         urcu_memb_register_thread,
         urcu_memb_start_poll_synchronize_rcu,
@@ -384,33 +349,11 @@ pub(crate) mod memb {
         RCU_API,
     };
 
-    define_rcu_guard!(
-        "MEMB",
-        RcuGuardMemb,
-        RcuContextMemb,
-        urcu_memb_read_lock,
-        urcu_memb_read_unlock
-    );
+    define_rcu_guard!(memb, RcuGuardMemb, RcuContextMemb);
 
-    define_rcu_poller!(
-        "MEMB",
-        RcuPollerMemb,
-        RcuContextMemb,
-        urcu_memb_start_poll_synchronize_rcu,
-        urcu_memb_poll_state_synchronize_rcu
-    );
+    define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
 
-    define_rcu_context!(
-        "MEMB",
-        RcuContextMemb,
-        RcuGuardMemb,
-        RcuPollerMemb,
-        RCU_API,
-        urcu_memb_init,
-        urcu_memb_register_thread,
-        urcu_memb_unregister_thread,
-        urcu_memb_synchronize_rcu
-    );
+    define_rcu_context!(memb, RcuContextMemb, RcuGuardMemb, RcuPollerMemb);
 }
 
 #[cfg(feature = "flavor-qsbr")]
@@ -429,33 +372,11 @@ pub(crate) mod qsbr {
         RCU_API,
     };
 
-    define_rcu_guard!(
-        "QSBR",
-        RcuGuardQsbr,
-        RcuContextQsbr,
-        urcu_qsbr_read_lock,
-        urcu_qsbr_read_unlock
-    );
+    define_rcu_guard!(qsbr, RcuGuardQsbr, RcuContextQsbr);
 
-    define_rcu_poller!(
-        "QSBR",
-        RcuPollerQsbr,
-        RcuContextQsbr,
-        urcu_qsbr_start_poll_synchronize_rcu,
-        urcu_qsbr_poll_state_synchronize_rcu
-    );
+    define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
 
-    define_rcu_context!(
-        "QSBR",
-        RcuContextQsbr,
-        RcuGuardQsbr,
-        RcuPollerQsbr,
-        RCU_API,
-        urcu_qsbr_init,
-        urcu_qsbr_register_thread,
-        urcu_qsbr_unregister_thread,
-        urcu_qsbr_synchronize_rcu
-    );
+    define_rcu_context!(qsbr, RcuContextQsbr, RcuGuardQsbr, RcuPollerQsbr);
 }
 
 #[cfg(feature = "flavor-memb")]
