@@ -30,13 +30,16 @@ pub use bindings::{
     urcu_qsbr_unregister_thread,
 };
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_qsbr_init() {}
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_qsbr_read_lock() {
     #[cfg(feature = "debug")]
     bindings::urcu_qsbr_read_lock();
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_qsbr_read_unlock() {
     #[cfg(feature = "debug")]
     bindings::urcu_qsbr_read_unlock();
