@@ -48,6 +48,10 @@ pub mod lfht {
     };
 }
 
+pub mod wfcq {
+    pub use crate::bindings::cds_wfcq_node as QueueNode;
+}
+
 /*************/
 /* rculfhash */
 /*************/

@@ -1,6 +1,10 @@
+pub(crate) mod callback;
+
 use std::cell::Cell;
 
 use urcu_sys::RcuFlavor;
+
+use crate::rcu::callback::{RcuCallback, RcuCleanupCallback};
 
 /// This trait is used to manually poll the RCU grace period.
 pub trait RcuPoller {
@@ -12,9 +16,12 @@ pub trait RcuPoller {
 ///
 /// #### Safety
 ///
-/// You must enforce single context per thread for a specific RCU flavor.
-/// Failure to do so can lead to a deadlock if a thread acquires an RCU read lock
-/// from one context and tries to do an RCU syncronization from another context.
+/// 1. You must enforce single context per thread for a specific RCU flavor.
+///    Failure to do so can lead to a deadlock if a thread acquires an RCU read lock
+///    from one context and tries to do an RCU syncronization from another context.
+/// 2. For callbacks (e.g. `rcu_call`), a barrier (e.g. `rcu_barrier`) should be
+///    executed before cleaning up the context. Failure to do so might results in
+///    memory leaks and object cleanups that don't happen.
 pub unsafe trait RcuContext {
     /// Defines a guard for an RCU critical section.
     type Guard<'a>: 'a
@@ -47,17 +54,28 @@ pub unsafe trait RcuContext {
     /// It cannot be called in an RCU critical section.
     fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_>;
 
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// #### Note
+    ///
+    /// The callback must be [`Send`] because it will be executed by a helper thread.
+    fn rcu_call<F>(callback: Box<F>)
+    where
+        F: RcuCallback + Send;
+
     /// Returns the API list for this RCU flavor.
     fn rcu_api() -> &'static RcuFlavor;
 }
 
 /// This trait defines an RCU reference that can be owned after an RCU grace period.
 ///
-/// #### Note
+/// #### Safety
 ///
-/// To prevent memory leak and enforce object cleanup, ownership must always be eventually taken.
+/// You need to ensure that dropping the type does not cause a memory leak. If the ownership
+/// of the reference is never taken (e.g. [`RcuRef::take_ownership`] is not called), you need
+/// to defer cleanup with [`RcuRef::defer_cleanup`] when [`Drop::drop`] is called.
 #[must_use]
-pub trait RcuRef<C> {
+pub unsafe trait RcuRef<C> {
     /// The output type after taking ownership.
     type Output;
 
@@ -67,9 +85,21 @@ pub trait RcuRef<C> {
     ///
     /// You must wait for the grace period before taking ownership.
     unsafe fn take_ownership(self) -> Self::Output;
+
+    /// Configure a cleanup callback to be called after the grace period.
+    fn defer_cleanup(self)
+    where
+        Self: Sized + Send,
+        C: RcuContext,
+    {
+        C::rcu_call(RcuCleanupCallback::new(self));
+    }
 }
 
-impl<T, C> RcuRef<C> for Option<T>
+/// #### Safety
+///
+/// It is the responsability of the underlying type to be safe.
+unsafe impl<T, C> RcuRef<C> for Option<T>
 where
     T: RcuRef<C>,
 {
@@ -256,12 +286,17 @@ macro_rules! define_rcu_context {
                         stringify!($flavor),
                     );
 
+                    urcu_func!($flavor, barrier)();
+
                     urcu_func!($flavor, unregister_thread)();
                 }
             }
         }
 
-        // SAFETY: There can only be 1 instance per thread.
+        /// #### Safety
+        ///
+        /// 1. There can only be 1 instance per thread.
+        /// 2. A barrier is called before cleanups.
         unsafe impl RcuContext for $context {
             type Guard<'a> = $guard<'a>;
 
@@ -280,6 +315,14 @@ macro_rules! define_rcu_context {
                 $poller::new(self)
             }
 
+            fn rcu_call<F>(callback: Box<F>)
+            where
+                F: RcuCallback + Send {
+                    callback.configure(|mut head, func| unsafe {
+                        urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
+                    });
+                }
+
             fn rcu_api() -> &'static RcuFlavor {
                 &RCU_API
             }
@@ -292,6 +335,8 @@ pub(crate) mod bp {
     use super::*;
 
     use urcu_bp_sys::{
+        urcu_bp_barrier,
+        urcu_bp_call_rcu,
         urcu_bp_init,
         urcu_bp_poll_state_synchronize_rcu,
         urcu_bp_read_lock,
@@ -315,6 +360,8 @@ pub(crate) mod mb {
     use super::*;
 
     use urcu_mb_sys::{
+        urcu_mb_barrier,
+        urcu_mb_call_rcu,
         urcu_mb_init,
         urcu_mb_poll_state_synchronize_rcu,
         urcu_mb_read_lock,
@@ -338,6 +385,8 @@ pub(crate) mod memb {
     use super::*;
 
     use urcu_memb_sys::{
+        urcu_memb_barrier,
+        urcu_memb_call_rcu,
         urcu_memb_init,
         urcu_memb_poll_state_synchronize_rcu,
         urcu_memb_read_lock,
@@ -361,6 +410,8 @@ pub(crate) mod qsbr {
     use super::*;
 
     use urcu_qsbr_sys::{
+        urcu_qsbr_barrier,
+        urcu_qsbr_call_rcu,
         urcu_qsbr_init,
         urcu_qsbr_poll_state_synchronize_rcu,
         urcu_qsbr_read_lock,

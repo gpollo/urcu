@@ -63,7 +63,11 @@ impl<T> RcuListNode<T> {
     /// Delete this node from the list.
     ///
     /// SAFETY: Require mutual exclusion on the list.
-    unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C> {
+    unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C>
+    where
+        T: Send,
+        C: RcuContext,
+    {
         let node = unsafe { &*ptr };
 
         let prev_ptr = node.prev.load(Ordering::Relaxed);
@@ -126,7 +130,26 @@ where
 /// It is safe to send a pointer, but it is the responsability of the `T` to be safe.
 unsafe impl<T: Send, C: RcuContext> Send for RcuListRef<T, C> {}
 
-impl<T, C> RcuRef<C> for RcuListRef<T, C>
+impl<T, C> Drop for RcuListRef<T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            Self {
+                ptr: self.ptr,
+                context: Default::default(),
+            }
+            .defer_cleanup();
+        }
+    }
+}
+
+/// #### Safety
+///
+/// The memory reclamation upon dropping is properly deferred after the RCU grace period.
+unsafe impl<T, C> RcuRef<C> for RcuListRef<T, C>
 where
     T: Send,
     C: RcuContext,
@@ -134,7 +157,12 @@ where
     type Output = RcuListRefOwned<T>;
 
     unsafe fn take_ownership(mut self) -> Self::Output {
-        RcuListRefOwned(Box::from_raw(self.ptr))
+        let output = RcuListRefOwned(Box::from_raw(self.ptr));
+
+        // SAFETY: We don't want deferred cleanup when dropping `self`.
+        self.ptr = std::ptr::null_mut();
+
+        output
     }
 }
 
