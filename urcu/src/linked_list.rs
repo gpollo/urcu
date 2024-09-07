@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
@@ -81,22 +82,71 @@ impl<T> RcuListNode<T> {
 
         RcuListRef {
             ptr,
-            context: PhantomData::default(),
+            context: Default::default(),
         }
     }
 }
 
+/// An owned RCU reference to a element removed from an [`RcuList`].
+pub struct RcuListRefOwned<T>(Box<RcuListNode<T>>);
+
+impl<T> Deref for RcuListRefOwned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.deref().data
+    }
+}
+
+impl<T> DerefMut for RcuListRefOwned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.deref_mut().data
+    }
+}
+
+/// An RCU reference to a element removed from an [`RcuList`].
+///
+/// #### Note
+///
+/// To prevent memory leak and enforce object cleanup, ownership must always be eventually taken. See [`rcu_take_ownership`].
+///
+/// [`rcu_take_ownership`]: crate::rcu_take_ownership
 #[must_use]
-pub struct RcuListRef<T, C> {
+pub struct RcuListRef<T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
     ptr: *mut RcuListNode<T>,
     context: PhantomData<C>,
 }
 
-impl<T, C> RcuRef<C> for RcuListRef<T, C> {
-    type Output = T;
+/// #### Safety
+///
+/// It is safe to send a pointer, but it is the responsability of the `T` to be safe.
+unsafe impl<T: Send, C: RcuContext> Send for RcuListRef<T, C> {}
 
-    unsafe fn take_ownership(self) -> Self::Output {
-        Box::from_raw(self.ptr).data
+impl<T, C> RcuRef<C> for RcuListRef<T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
+    type Output = RcuListRefOwned<T>;
+
+    unsafe fn take_ownership(mut self) -> Self::Output {
+        RcuListRefOwned(Box::from_raw(self.ptr))
+    }
+}
+
+impl<T, C> Deref for RcuListRef<T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &(*self.ptr).data }
     }
 }
 
@@ -104,10 +154,20 @@ impl<T, C> RcuRef<C> for RcuListRef<T, C> {
 ///
 /// # Limitations
 ///
+/// ##### Mutable References
+///
+/// Because there might always be readers borrowing a node's data, it is impossible
+/// to get a mutable references to the data inside the linked list. You should design
+/// the type stored in the list with [interior mutabillity] that can be shared between
+/// threads (`T` requires `Send` and `Sync`).
+///
+/// [interior mutabillity]: https://doc.rust-lang.org/reference/interior-mutability.html
+///
 /// ##### List Length
 ///
-/// Because a writer might concurrently modify the list, the amount of node might change at any moment.
-/// To prevent user error (e.g. allocate an array for each node), there is no `.len()` method.
+/// Because a writer might concurrently modify the list, the amount of node might change
+/// at any moment. To prevent user error (e.g. allocate an array for each node), there is
+/// no `.len()` method.
 ///
 /// That said, it could be implemented by the writer since it has exclusive access.
 ///
@@ -122,7 +182,8 @@ pub struct RcuList<T, C> {
     head: AtomicPtr<RcuListNode<T>>,
     tail: AtomicPtr<RcuListNode<T>>,
     mutex: Arc<Mutex<()>>,
-    context: PhantomData<C>,
+    // Also prevents auto-trait implementation of [`Send`] and [`Sync`].
+    context: PhantomData<*const C>,
 }
 
 impl<T, C> RcuList<T, C> {
@@ -131,11 +192,11 @@ impl<T, C> RcuList<T, C> {
             head: AtomicPtr::new(std::ptr::null_mut()),
             tail: AtomicPtr::new(std::ptr::null_mut()),
             mutex: Arc::default(),
-            context: PhantomData::default(),
+            context: PhantomData,
         })
     }
 
-    pub fn reader<'a>(self: &'a Arc<Self>, guard: &'a C::Guard<'a>) -> RcuListReader<T, C>
+    pub fn reader<'a>(self: &'a Arc<Self>, guard: &'a C::Guard<'a>) -> RcuListReader<'a, T, C>
     where
         C: RcuContext + 'a,
     {
@@ -166,7 +227,13 @@ impl<T, C> Drop for RcuList<T, C> {
     }
 }
 
-/// Read-side API of an RCU list.
+// SAFETY: An [`RcuList`] can be used to send data to another thread.
+unsafe impl<T, C> Send for RcuList<T, C> where T: Send {}
+
+// SAFETY: An [`RcuList`] can be used to share data between threads.
+unsafe impl<T, C> Sync for RcuList<T, C> where T: Sync {}
+
+/// The read-side API of an [`RcuList`].
 pub struct RcuListReader<'a, T, C>
 where
     C: RcuContext + 'a,
@@ -197,13 +264,18 @@ where
     }
 }
 
+/// The write-side API of an [`RcuList`].
 pub struct RcuListWriter<T, C> {
     list: Arc<RcuList<T, C>>,
     #[allow(dead_code)]
     guard: ArcMutexGuardian<()>,
 }
 
-impl<T, C> RcuListWriter<T, C> {
+impl<T, C> RcuListWriter<T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
     pub fn pop_back(&mut self) -> Option<RcuListRef<T, C>> {
         let node_ptr = self.list.tail.load(Ordering::Acquire);
         if node_ptr.is_null() {
@@ -215,7 +287,7 @@ impl<T, C> RcuListWriter<T, C> {
                 list: self.list.clone(),
                 // SAFETY: The pointer is not null.
                 node: unsafe { NonNull::new_unchecked(node_ptr) },
-                life: PhantomData::default(),
+                life: PhantomData,
             }
             .remove(),
         )
@@ -232,39 +304,44 @@ impl<T, C> RcuListWriter<T, C> {
                 list: self.list.clone(),
                 // SAFETY: The pointer is not null.
                 node: unsafe { NonNull::new_unchecked(node_ptr) },
-                life: PhantomData::default(),
+                life: PhantomData,
             }
             .remove(),
         )
     }
 
-    pub fn push_back(&mut self, data: T) {
+    pub fn push_back(&mut self, data: T)
+    where
+        T: Sync,
+    {
         let new_node = RcuListNode::new(data);
 
         let tail_node_ptr = self.list.tail.load(Ordering::Acquire);
         if tail_node_ptr.is_null() {
             self.list.head.store(new_node, Ordering::Relaxed);
         } else {
-            unsafe { (&mut *tail_node_ptr).insert_after(new_node) };
+            unsafe { (*tail_node_ptr).insert_after(new_node) };
         }
 
         self.list.tail.store(new_node, Ordering::Release);
     }
 
-    pub fn push_front(&mut self, data: T) {
+    pub fn push_front(&mut self, data: T)
+    {
         let new_node = RcuListNode::new(data);
 
         let head_node_ptr = self.list.head.load(Ordering::Acquire);
         if head_node_ptr.is_null() {
             self.list.tail.store(new_node, Ordering::Relaxed);
         } else {
-            unsafe { (&mut *head_node_ptr).insert_before(new_node) };
+            unsafe { (*head_node_ptr).insert_before(new_node) };
         }
 
         self.list.head.store(new_node, Ordering::Release);
     }
 }
 
+/// An individual entry in an [`RcuList`].
 pub struct RcuListEntry<'a, T, C> {
     list: Arc<RcuList<T, C>>,
     node: NonNull<RcuListNode<T>>,
@@ -272,7 +349,12 @@ pub struct RcuListEntry<'a, T, C> {
     life: PhantomData<&'a T>,
 }
 
-impl<'a, T, C> RcuListEntry<'a, T, C> {
+impl<'a, T, C> RcuListEntry<'a, T, C>
+where
+    T: Send,
+    C: RcuContext,
+{
+    /// Inserts a node after this entry.
     pub fn insert_after(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
         let node_next = node.next.load(Ordering::Acquire);
@@ -287,6 +369,7 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
         }
     }
 
+    /// Inserts a node before this entry.
     pub fn insert_before(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
         let node_prev = node.prev.load(Ordering::Acquire);
@@ -301,6 +384,7 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
         }
     }
 
+    /// Removes the node from the list.
     pub fn remove(self) -> RcuListRef<T, C> {
         let node = unsafe { self.node.as_ref() };
         let node_prev = node.prev.load(Ordering::Acquire);
@@ -318,6 +402,7 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     }
 }
 
+/// An iterator over the nodes of an [`RcuList`].
 pub struct RcuListIterator<T, O> {
     #[allow(dead_code)]
     reader: O,
@@ -391,7 +476,7 @@ where
             Some(RcuListEntry {
                 node: unsafe { NonNull::new_unchecked(self.ptr as *mut RcuListNode<T>) },
                 list: self.reader.list.clone(),
-                life: PhantomData::default(),
+                life: PhantomData,
             })
         } else {
             None
