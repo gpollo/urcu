@@ -87,6 +87,10 @@ pub unsafe trait RcuRef<C> {
     unsafe fn take_ownership(self) -> Self::Output;
 
     /// Configure a cleanup callback to be called after the grace period.
+    ///
+    /// #### Note
+    ///
+    /// The reference must implement [`Send`] since the cleanup will be executed in an helper thread.
     fn defer_cleanup(self)
     where
         Self: Sized + Send,
@@ -251,26 +255,24 @@ macro_rules! define_rcu_context {
                 thread_local! {static RCU_CONTEXT: Cell<bool> = Cell::new(false)};
 
                 RCU_CONTEXT.with(|initialized| {
-                    if !initialized.get() {
-                        initialized.set(true);
-
-                        // SAFETY: The registration is only called once per thread.
-                        unsafe {
-                            log::info!(
-                                "registering thread '{}' ({}) with RCU (liburcu-{})",
-                                std::thread::current().name().unwrap_or("<unnamed>"),
-                                libc::gettid(),
-                                stringify!($flavor),
-                            );
-
-                            urcu_func!($flavor, init)();
-                            urcu_func!($flavor, register_thread)();
-                        }
-
-                        Some(Self)
-                    } else {
-                        None
+                    if initialized.replace(true) {
+                        return None;
                     }
+
+                    // SAFETY: The registration is only called once per thread.
+                    unsafe {
+                        log::info!(
+                            "registering thread '{}' ({}) with RCU (liburcu-{})",
+                            std::thread::current().name().unwrap_or("<unnamed>"),
+                            libc::gettid(),
+                            stringify!($flavor),
+                        );
+
+                        urcu_func!($flavor, init)();
+                        urcu_func!($flavor, register_thread)();
+                    }
+
+                    Some(Self)
                 })
             }
         }
