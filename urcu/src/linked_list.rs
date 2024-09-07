@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Result};
 use guardian::ArcMutexGuardian;
 
-use crate::{RcuContext, RcuRef};
+use crate::{DefaultContext, RcuContext, RcuRef};
 
 struct RcuListNode<T> {
     prev: AtomicPtr<Self>,
@@ -178,7 +178,7 @@ where
 /// For example, if you create an forward iterator, it can only go forward.
 ///
 /// That said, it could be implemented by the writer since it has exclusive access.
-pub struct RcuList<T, C> {
+pub struct RcuList<T, C = DefaultContext> {
     head: AtomicPtr<RcuListNode<T>>,
     tail: AtomicPtr<RcuListNode<T>>,
     mutex: Arc<Mutex<()>>,
