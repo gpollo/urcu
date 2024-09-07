@@ -28,10 +28,19 @@ pub use bindings::{
     urcu_bp_unregister_rculfhash_atfork,
 };
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_bp_init() {}
+
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_bp_quiescent_state() {}
+
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_bp_thread_offline() {}
+
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_bp_thread_online() {}
+
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_bp_unregister_thread() {}
 
 pub static RCU_API: RcuFlavor = RcuFlavor {

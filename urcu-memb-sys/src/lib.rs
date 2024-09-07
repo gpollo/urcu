@@ -30,10 +30,13 @@ pub use bindings::{
     urcu_memb_unregister_thread,
 };
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_memb_quiescent_state() {}
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_memb_thread_offline() {}
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn urcu_memb_thread_online() {}
 
 pub static RCU_API: RcuFlavor = RcuFlavor {
