@@ -1,6 +1,7 @@
 pub(crate) mod callback;
 
 use std::cell::Cell;
+use std::marker::PhantomData;
 
 use urcu_sys::RcuFlavor;
 
@@ -244,7 +245,10 @@ macro_rules! define_rcu_context {
         /// There can only be 1 instance per thread.
         /// The thread will be registered upon creation.
         /// It will be unregistered upon dropping.
-        pub struct $context;
+        pub struct $context(
+            // Prevent Send+Send auto trait implementations.
+            PhantomData<*const ()>
+        );
 
         impl $context {
             /// Creates the context instance.
@@ -272,7 +276,7 @@ macro_rules! define_rcu_context {
                         urcu_func!($flavor, register_thread)();
                     }
 
-                    Some(Self)
+                    Some(Self(PhantomData))
                 })
             }
         }
