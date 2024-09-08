@@ -26,7 +26,9 @@ impl<T> RcuListNode<T> {
 
     /// Insert a node after this one.
     ///
-    /// SAFETY: Require mutual exclusion on the list.
+    /// #### Safety
+    ///
+    /// Require mutual exclusion on the list.
     unsafe fn insert_after(&mut self, new_prev_ptr: *mut Self) {
         let old_next_ptr = self.next.load(Ordering::Relaxed);
         let old_next = unsafe { &mut *old_next_ptr };
@@ -44,7 +46,9 @@ impl<T> RcuListNode<T> {
 
     /// Insert a node before this one.
     ///
-    /// SAFETY: Require mutual exclusion on the list.
+    /// #### Safety
+    ///
+    /// Require mutual exclusion on the list.
     unsafe fn insert_before(&mut self, new_prev_ptr: *mut Self) {
         let old_prev_ptr = self.prev.load(Ordering::Relaxed);
         let old_prev = unsafe { &mut *old_prev_ptr };
@@ -62,10 +66,12 @@ impl<T> RcuListNode<T> {
 
     /// Delete this node from the list.
     ///
-    /// SAFETY: Require mutual exclusion on the list.
+    /// #### Safety
+    ///
+    /// Require mutual exclusion on the list.
     unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C>
     where
-        T: Send + Sync,
+        T: Send,
         C: RcuContext,
     {
         let node = unsafe { &*ptr };
@@ -115,11 +121,15 @@ impl<T> DerefMut for RcuListRefOwned<T> {
 /// To get ownership of the reference, you can use [`rcu_take_ownership`]. If ownership is
 /// never taken, cleanup will be automatically executed after the next RCU grace period.
 ///
+/// #### Requirements
+///
+/// `T` must be [`Send`] because [`Drop::drop`] might defer cleanup in another thread.
+///
 /// [`rcu_take_ownership`]: crate::rcu_take_ownership
 #[must_use]
 pub struct RcuListRef<T, C>
 where
-    T: Send + Sync,
+    T: Send,
     C: RcuContext,
 {
     ptr: *mut RcuListNode<T>,
@@ -128,17 +138,17 @@ where
 
 /// #### Safety
 ///
-/// It is safe to send an RCU reference if `T` implements [`Send`].
+/// An RCU reference can be sent to another thread if `T` implements [`Send`].
 unsafe impl<T, C> Send for RcuListRef<T, C>
 where
-    T: Send + Sync,
+    T: Send,
     C: RcuContext,
 {
 }
 
 impl<T, C> Drop for RcuListRef<T, C>
 where
-    T: Send + Sync,
+    T: Send,
     C: RcuContext,
 {
     fn drop(&mut self) {
@@ -157,7 +167,7 @@ where
 /// The memory reclamation upon dropping is properly deferred after the RCU grace period.
 unsafe impl<T, C> RcuRef<C> for RcuListRef<T, C>
 where
-    T: Send + Sync,
+    T: Send,
     C: RcuContext,
 {
     type Output = RcuListRefOwned<T>;
@@ -174,7 +184,7 @@ where
 
 impl<T, C> Deref for RcuListRef<T, C>
 where
-    T: Send + Sync,
+    T: Send,
     C: RcuContext,
 {
     type Target = T;
@@ -193,7 +203,7 @@ where
 /// Because there might always be readers borrowing a node's data, it is impossible
 /// to get a mutable references to the data inside the linked list. You should design
 /// the type stored in the list with [interior mutabillity] that can be shared between
-/// threads (`T` requires `Send` and `Sync`).
+/// threads.
 ///
 /// [interior mutabillity]: https://doc.rust-lang.org/reference/interior-mutability.html
 ///
@@ -203,19 +213,12 @@ where
 /// at any moment. To prevent user error (e.g. allocate an array for each node), there is
 /// no `.len()` method.
 ///
-/// That said, it could be implemented by the writer since it has exclusive access.
-///
 /// ##### Bidirectional Iteration
 ///
 /// Because a writer might concurrently modify the list, it is possible that `node.next.prev != node`.
 /// To prevent user error, this linked list does not support bidirectional iteration.
 /// For example, if you create an forward iterator, it can only go forward.
-///
-/// That said, it could be implemented by the writer since it has exclusive access.
-pub struct RcuList<T, C = DefaultContext>
-where
-    T: Send + Sync,
-{
+pub struct RcuList<T, C = DefaultContext> {
     head: AtomicPtr<RcuListNode<T>>,
     tail: AtomicPtr<RcuListNode<T>>,
     mutex: Arc<Mutex<()>>,
@@ -223,10 +226,7 @@ where
     context: PhantomData<*const C>,
 }
 
-impl<T, C> RcuList<T, C>
-where
-    T: Send + Sync,
-{
+impl<T, C> RcuList<T, C> {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             head: AtomicPtr::new(std::ptr::null_mut()),
@@ -255,10 +255,7 @@ where
     }
 }
 
-impl<T, C> Drop for RcuList<T, C>
-where
-    T: Send + Sync,
-{
+impl<T, C> Drop for RcuList<T, C> {
     fn drop(&mut self) {
         // SAFETY: Because of reference counting, there are no reader/writer threads accessing this object.
         let mut node_ptr = self.head.load(Ordering::Relaxed);
@@ -272,18 +269,17 @@ where
 
 /// #### Safety
 ///
-/// An [`RcuList`] can be used to send data to another thread.
-unsafe impl<T, C> Send for RcuList<T, C> where T: Send + Sync {}
+/// An [`RcuList`] can be used to send `T` to another thread.
+unsafe impl<T, C> Send for RcuList<T, C> where T: Send {}
 
 /// #### Safety
 ///
-/// An [`RcuList`] can be used to share data between threads.
-unsafe impl<T, C> Sync for RcuList<T, C> where T: Send + Sync {}
+/// An [`RcuList`] can be used to share `T` between threads.
+unsafe impl<T, C> Sync for RcuList<T, C> where T: Sync {}
 
 /// The read-side API of an [`RcuList`].
 pub struct RcuListReader<'a, T, C>
 where
-    T: Send + Sync,
     C: RcuContext + 'a,
 {
     list: Arc<RcuList<T, C>>,
@@ -293,7 +289,6 @@ where
 
 impl<'a, T, C> RcuListReader<'a, T, C>
 where
-    T: Send + Sync,
     C: RcuContext + 'a,
 {
     pub fn iter_forward(&self) -> RcuListIterator<T, &Self> {
@@ -314,21 +309,18 @@ where
 }
 
 /// The write-side API of an [`RcuList`].
-pub struct RcuListWriter<T, C>
-where
-    T: Send + Sync,
-{
+pub struct RcuListWriter<T, C> {
     list: Arc<RcuList<T, C>>,
     #[allow(dead_code)]
     guard: ArcMutexGuardian<()>,
 }
 
-impl<T, C> RcuListWriter<T, C>
-where
-    T: Send + Sync,
-    C: RcuContext,
-{
-    pub fn pop_back(&mut self) -> Option<RcuListRef<T, C>> {
+impl<T, C> RcuListWriter<T, C> {
+    pub fn pop_back(&mut self) -> Option<RcuListRef<T, C>>
+    where
+        T: Send,
+        C: RcuContext,
+    {
         let node_ptr = self.list.tail.load(Ordering::Acquire);
         if node_ptr.is_null() {
             return None;
@@ -345,7 +337,11 @@ where
         )
     }
 
-    pub fn pop_front(&mut self) -> Option<RcuListRef<T, C>> {
+    pub fn pop_front(&mut self) -> Option<RcuListRef<T, C>>
+    where
+        T: Send,
+        C: RcuContext,
+    {
         let node_ptr = self.list.head.load(Ordering::Acquire);
         if node_ptr.is_null() {
             return None;
@@ -390,21 +386,14 @@ where
 }
 
 /// An individual entry in an [`RcuList`].
-pub struct RcuListEntry<'a, T, C>
-where
-    T: Send + Sync,
-{
+pub struct RcuListEntry<'a, T, C> {
     list: Arc<RcuList<T, C>>,
     node: NonNull<RcuListNode<T>>,
     #[allow(dead_code)]
     life: PhantomData<&'a T>,
 }
 
-impl<'a, T, C> RcuListEntry<'a, T, C>
-where
-    T: Send + Sync,
-    C: RcuContext,
-{
+impl<'a, T, C> RcuListEntry<'a, T, C> {
     /// Inserts a node after this entry.
     pub fn insert_after(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
@@ -436,7 +425,11 @@ where
     }
 
     /// Removes the node from the list.
-    pub fn remove(self) -> RcuListRef<T, C> {
+    pub fn remove(self) -> RcuListRef<T, C>
+    where
+        T: Send,
+        C: RcuContext,
+    {
         let node = unsafe { self.node.as_ref() };
         let node_prev = node.prev.load(Ordering::Acquire);
         let node_next = node.next.load(Ordering::Acquire);
@@ -463,7 +456,6 @@ pub struct RcuListIterator<T, O> {
 
 impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListReader<'a, T, C>>
 where
-    T: Send + Sync + 'a,
     C: RcuContext + 'a,
 {
     type Item = &'a T;
@@ -485,10 +477,7 @@ where
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>>
-where
-    T: Send + Sync + 'a,
-{
+impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -508,10 +497,7 @@ where
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>>
-where
-    T: Send + Sync + 'a,
-{
+impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
     type Item = RcuListEntry<'a, T, C>;
 
     fn next(&mut self) -> Option<Self::Item> {
