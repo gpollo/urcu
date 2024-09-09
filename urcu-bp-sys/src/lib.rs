@@ -16,6 +16,7 @@ mod bindings {
 pub use bindings::{
     urcu_bp_barrier,
     urcu_bp_call_rcu,
+    urcu_bp_defer_barrier,
     urcu_bp_defer_rcu,
     urcu_bp_poll_state_synchronize_rcu,
     urcu_bp_read_lock,
