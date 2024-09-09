@@ -52,7 +52,10 @@ pub trait RcuUnsafe {
 /// 1. You must enforce single context per thread for a specific RCU flavor.
 ///    Failure to do so can lead to a deadlock if a thread acquires an RCU read lock
 ///    from one context and tries to do an RCU syncronization from another context.
-/// 2. For callbacks (e.g. `rcu_call`), a barrier (e.g. `rcu_barrier`) should be
+/// 2. For callbacks (`rcu_call`), a barrier (`rcu_barrier`) should be executed
+///    before cleaning up the context. Failure to do so might results in memory
+///    leaks and object cleanups that don't happen.
+/// 3. For deferred callbacks (`rcu_defer`), a barrier (`defer_barrier`) should be
 ///    executed before cleaning up the context. Failure to do so might results in
 ///    memory leaks and object cleanups that don't happen.
 pub unsafe trait RcuContext {
@@ -89,6 +92,17 @@ pub unsafe trait RcuContext {
     ///
     /// It cannot be called in an RCU critical section.
     fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_>;
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// #### Note
+    ///
+    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
+    ///
+    /// The callback is guaranteed to be executed on the current thread.
+    fn rcu_defer<F>(&mut self, callback: Box<F>)
+    where
+        F: RcuCallback;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -304,6 +318,8 @@ macro_rules! define_rcu_context {
 
                     urcu_func!($flavor, barrier)();
 
+                    urcu_func!($flavor, defer_barrier)();
+
                     urcu_func!($flavor, unregister_thread)();
                 }
             }
@@ -312,7 +328,8 @@ macro_rules! define_rcu_context {
         /// #### Safety
         ///
         /// 1. There can only be 1 instance per thread.
-        /// 2. A barrier is called before cleanups.
+        /// 2. `call_rcu` barrier is called before cleanups.
+        /// 3. `defer_rcu` barrier is called before cleanups.
         unsafe impl RcuContext for $context {
             type Unsafe = $unsafe;
 
@@ -332,6 +349,20 @@ macro_rules! define_rcu_context {
             fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_> {
                 $poller::new(self)
             }
+
+            fn rcu_defer<F>(&mut self, callback: Box<F>)
+            where
+                F: RcuCallback {
+                    // TODO: We could optimize deferred callbacks by not using [`RcuCallback`].
+                    type HeadPtrCallback = unsafe extern "C" fn(*mut urcu_sys::RcuHead);
+                    type VoidPtrCallback = unsafe extern "C" fn(*mut libc::c_void);
+                    callback.configure(|mut head, func| unsafe {
+                        urcu_func!($flavor, defer_rcu)(
+                            Some(std::mem::transmute::<HeadPtrCallback, VoidPtrCallback>(func)),
+                            head.as_mut() as *mut urcu_sys::RcuHead as *mut libc::c_void,
+                        );
+                    });
+                }
 
             fn rcu_call<F>(callback: Box<F>)
             where
@@ -358,6 +389,8 @@ pub mod flavor {
         use urcu_bp_sys::{
             urcu_bp_barrier,
             urcu_bp_call_rcu,
+            urcu_bp_defer_barrier,
+            urcu_bp_defer_rcu,
             urcu_bp_init,
             urcu_bp_poll_state_synchronize_rcu,
             urcu_bp_read_lock,
@@ -385,6 +418,8 @@ pub mod flavor {
         use urcu_mb_sys::{
             urcu_mb_barrier,
             urcu_mb_call_rcu,
+            urcu_mb_defer_barrier,
+            urcu_mb_defer_rcu,
             urcu_mb_init,
             urcu_mb_poll_state_synchronize_rcu,
             urcu_mb_read_lock,
@@ -412,6 +447,8 @@ pub mod flavor {
         use urcu_memb_sys::{
             urcu_memb_barrier,
             urcu_memb_call_rcu,
+            urcu_memb_defer_barrier,
+            urcu_memb_defer_rcu,
             urcu_memb_init,
             urcu_memb_poll_state_synchronize_rcu,
             urcu_memb_read_lock,
@@ -445,6 +482,8 @@ pub mod flavor {
         use urcu_qsbr_sys::{
             urcu_qsbr_barrier,
             urcu_qsbr_call_rcu,
+            urcu_qsbr_defer_barrier,
+            urcu_qsbr_defer_rcu,
             urcu_qsbr_init,
             urcu_qsbr_poll_state_synchronize_rcu,
             urcu_qsbr_read_lock,
