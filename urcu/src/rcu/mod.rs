@@ -15,6 +15,36 @@ pub trait RcuPoller {
     fn grace_period_finished(&self) -> bool;
 }
 
+/// This trait defines an unchecked API to the RCU primitives.
+pub trait RcuUnsafe {
+    /// Starts an RCU critical section.
+    ///
+    /// #### Safety
+    ///
+    /// The caller is responsible for ensuring the thread has been registered.
+    ///
+    /// The caller is reponsible for calling [`RcuUnsafe::unchecked_rcu_read_unlock`]
+    /// at the end of the RCU critical section.
+    unsafe fn unchecked_rcu_read_lock();
+
+    /// Stops an RCU critical section.
+    ///
+    /// #### Safety
+    ///
+    /// The caller is responsible for ensuring the thread has been registered.
+    ///
+    /// The caller is reponsible for calling [`RcuUnsafe::unchecked_rcu_read_lock`]
+    /// at the start of the RCU critical section.
+    unsafe fn unchecked_rcu_read_unlock();
+
+    /// Waits until the RCU grace period is over.
+    ///
+    /// #### Safety
+    ///
+    /// The caller must ensure an RCU critical section is currently not running.
+    unsafe fn unchecked_rcu_synchronize();
+}
+
 /// This trait defines the per-thread RCU context.
 ///
 /// #### Safety
@@ -26,6 +56,9 @@ pub trait RcuPoller {
 ///    executed before cleaning up the context. Failure to do so might results in
 ///    memory leaks and object cleanups that don't happen.
 pub unsafe trait RcuContext {
+    /// Defines an API for unchecked RCU primitives.
+    type Unsafe: RcuUnsafe;
+
     /// Defines a guard for an RCU critical section.
     type Guard<'a>: 'a
     where
@@ -144,6 +177,28 @@ macro_rules! urcu_func {
     };
 }
 
+macro_rules! define_rcu_unsafe_context {
+    ($flavor:ident, $context:ident) => {
+        #[doc = concat!("Defines an unsafe RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
+        #[allow(dead_code)]
+        pub struct $context;
+
+        impl RcuUnsafe for $context {
+            unsafe fn unchecked_rcu_read_lock() {
+                unsafe { urcu_func!($flavor, read_lock)() }
+            }
+
+            unsafe fn unchecked_rcu_read_unlock() {
+                unsafe { urcu_func!($flavor, read_unlock)() }
+            }
+
+            unsafe fn unchecked_rcu_synchronize() {
+                unsafe { urcu_func!($flavor, synchronize_rcu)() }
+            }
+        }
+    };
+}
+
 macro_rules! define_rcu_guard {
     ($flavor:ident, $guard:ident, $context:ident) => {
         #[doc = concat!("Defines a guard for an RCU critical section (`liburcu-", stringify!($flavor), "`).")]
@@ -192,7 +247,7 @@ macro_rules! define_rcu_poller {
 }
 
 macro_rules! define_rcu_context {
-    ($flavor:ident, $context:ident, $guard:ident, $poller:ident) => {
+    ($flavor:ident, $context:ident, $unsafe:ident, $guard:ident, $poller:ident) => {
         #[doc = concat!("Defines an RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
         ///
         /// #### Note
@@ -259,6 +314,8 @@ macro_rules! define_rcu_context {
         /// 1. There can only be 1 instance per thread.
         /// 2. A barrier is called before cleanups.
         unsafe impl RcuContext for $context {
+            type Unsafe = $unsafe;
+
             type Guard<'a> = $guard<'a>;
 
             type Poller<'a> = $poller<'a>;
@@ -313,7 +370,9 @@ pub(crate) mod bp {
 
     define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
 
-    define_rcu_context!(bp, RcuContextBp, RcuGuardBp, RcuPollerBp);
+    define_rcu_unsafe_context!(bp, RcuUnsafeBp);
+
+    define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
 }
 
 #[cfg(feature = "flavor-mb")]
@@ -338,7 +397,9 @@ pub(crate) mod mb {
 
     define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
 
-    define_rcu_context!(mb, RcuContextMb, RcuGuardMb, RcuPollerMb);
+    define_rcu_unsafe_context!(mb, RcuUnsafeMb);
+
+    define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
 }
 
 #[cfg(feature = "flavor-memb")]
@@ -363,7 +424,15 @@ pub(crate) mod memb {
 
     define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
 
-    define_rcu_context!(memb, RcuContextMemb, RcuGuardMemb, RcuPollerMemb);
+    define_rcu_unsafe_context!(memb, RcuUnsafeMemb);
+
+    define_rcu_context!(
+        memb,
+        RcuContextMemb,
+        RcuUnsafeMemb,
+        RcuGuardMemb,
+        RcuPollerMemb
+    );
 }
 
 #[cfg(feature = "flavor-qsbr")]
@@ -388,7 +457,15 @@ pub(crate) mod qsbr {
 
     define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
 
-    define_rcu_context!(qsbr, RcuContextQsbr, RcuGuardQsbr, RcuPollerQsbr);
+    define_rcu_unsafe_context!(qsbr, RcuUnsafeQsbr);
+
+    define_rcu_context!(
+        qsbr,
+        RcuContextQsbr,
+        RcuUnsafeQsbr,
+        RcuGuardQsbr,
+        RcuPollerQsbr
+    );
 }
 
 #[cfg(feature = "flavor-memb")]
