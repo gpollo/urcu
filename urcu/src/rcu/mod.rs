@@ -348,138 +348,154 @@ macro_rules! define_rcu_context {
     };
 }
 
-#[cfg(feature = "flavor-bp")]
-pub(crate) mod bp {
+pub mod flavor {
     use super::*;
 
-    use urcu_bp_sys::{
-        urcu_bp_barrier,
-        urcu_bp_call_rcu,
-        urcu_bp_init,
-        urcu_bp_poll_state_synchronize_rcu,
-        urcu_bp_read_lock,
-        urcu_bp_read_unlock,
-        urcu_bp_register_thread,
-        urcu_bp_start_poll_synchronize_rcu,
-        urcu_bp_synchronize_rcu,
-        urcu_bp_unregister_thread,
-        RCU_API,
-    };
+    #[cfg(feature = "flavor-bp")]
+    pub(crate) mod bp {
+        use super::*;
 
-    define_rcu_guard!(bp, RcuGuardBp, RcuContextBp);
+        use urcu_bp_sys::{
+            urcu_bp_barrier,
+            urcu_bp_call_rcu,
+            urcu_bp_init,
+            urcu_bp_poll_state_synchronize_rcu,
+            urcu_bp_read_lock,
+            urcu_bp_read_unlock,
+            urcu_bp_register_thread,
+            urcu_bp_start_poll_synchronize_rcu,
+            urcu_bp_synchronize_rcu,
+            urcu_bp_unregister_thread,
+            RCU_API,
+        };
 
-    define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
+        define_rcu_guard!(bp, RcuGuardBp, RcuContextBp);
 
-    define_rcu_unsafe_context!(bp, RcuUnsafeBp);
+        define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
 
-    define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
-}
+        define_rcu_unsafe_context!(bp, RcuUnsafeBp);
 
-#[cfg(feature = "flavor-mb")]
-pub(crate) mod mb {
-    use super::*;
+        define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
+    }
 
-    use urcu_mb_sys::{
-        urcu_mb_barrier,
-        urcu_mb_call_rcu,
-        urcu_mb_init,
-        urcu_mb_poll_state_synchronize_rcu,
-        urcu_mb_read_lock,
-        urcu_mb_read_unlock,
-        urcu_mb_register_thread,
-        urcu_mb_start_poll_synchronize_rcu,
-        urcu_mb_synchronize_rcu,
-        urcu_mb_unregister_thread,
-        RCU_API,
-    };
+    #[cfg(feature = "flavor-mb")]
+    pub(crate) mod mb {
+        use super::*;
 
-    define_rcu_guard!(mb, RcuGuardMb, RcuContextMb);
+        use urcu_mb_sys::{
+            urcu_mb_barrier,
+            urcu_mb_call_rcu,
+            urcu_mb_init,
+            urcu_mb_poll_state_synchronize_rcu,
+            urcu_mb_read_lock,
+            urcu_mb_read_unlock,
+            urcu_mb_register_thread,
+            urcu_mb_start_poll_synchronize_rcu,
+            urcu_mb_synchronize_rcu,
+            urcu_mb_unregister_thread,
+            RCU_API,
+        };
 
-    define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
+        define_rcu_guard!(mb, RcuGuardMb, RcuContextMb);
 
-    define_rcu_unsafe_context!(mb, RcuUnsafeMb);
+        define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
 
-    define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
+        define_rcu_unsafe_context!(mb, RcuUnsafeMb);
+
+        define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
+    }
+
+    #[cfg(feature = "flavor-memb")]
+    pub(crate) mod memb {
+        use super::*;
+
+        use urcu_memb_sys::{
+            urcu_memb_barrier,
+            urcu_memb_call_rcu,
+            urcu_memb_init,
+            urcu_memb_poll_state_synchronize_rcu,
+            urcu_memb_read_lock,
+            urcu_memb_read_unlock,
+            urcu_memb_register_thread,
+            urcu_memb_start_poll_synchronize_rcu,
+            urcu_memb_synchronize_rcu,
+            urcu_memb_unregister_thread,
+            RCU_API,
+        };
+
+        define_rcu_guard!(memb, RcuGuardMemb, RcuContextMemb);
+
+        define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
+
+        define_rcu_unsafe_context!(memb, RcuUnsafeMemb);
+
+        define_rcu_context!(
+            memb,
+            RcuContextMemb,
+            RcuUnsafeMemb,
+            RcuGuardMemb,
+            RcuPollerMemb
+        );
+    }
+
+    #[cfg(feature = "flavor-qsbr")]
+    pub(crate) mod qsbr {
+        use super::*;
+
+        use urcu_qsbr_sys::{
+            urcu_qsbr_barrier,
+            urcu_qsbr_call_rcu,
+            urcu_qsbr_init,
+            urcu_qsbr_poll_state_synchronize_rcu,
+            urcu_qsbr_read_lock,
+            urcu_qsbr_read_unlock,
+            urcu_qsbr_register_thread,
+            urcu_qsbr_start_poll_synchronize_rcu,
+            urcu_qsbr_synchronize_rcu,
+            urcu_qsbr_unregister_thread,
+            RCU_API,
+        };
+
+        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuContextQsbr);
+
+        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
+
+        define_rcu_unsafe_context!(qsbr, RcuUnsafeQsbr);
+
+        define_rcu_context!(
+            qsbr,
+            RcuContextQsbr,
+            RcuUnsafeQsbr,
+            RcuGuardQsbr,
+            RcuPollerQsbr
+        );
+    }
+
+    #[cfg(feature = "flavor-bp")]
+    pub use bp::*;
+
+    #[cfg(feature = "flavor-mb")]
+    pub use mb::*;
+
+    #[cfg(feature = "flavor-memb")]
+    pub use memb::*;
+
+    #[cfg(feature = "flavor-qsbr")]
+    pub use qsbr::*;
 }
 
 #[cfg(feature = "flavor-memb")]
-pub(crate) mod memb {
-    use super::*;
-
-    use urcu_memb_sys::{
-        urcu_memb_barrier,
-        urcu_memb_call_rcu,
-        urcu_memb_init,
-        urcu_memb_poll_state_synchronize_rcu,
-        urcu_memb_read_lock,
-        urcu_memb_read_unlock,
-        urcu_memb_register_thread,
-        urcu_memb_start_poll_synchronize_rcu,
-        urcu_memb_synchronize_rcu,
-        urcu_memb_unregister_thread,
-        RCU_API,
-    };
-
-    define_rcu_guard!(memb, RcuGuardMemb, RcuContextMemb);
-
-    define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
-
-    define_rcu_unsafe_context!(memb, RcuUnsafeMemb);
-
-    define_rcu_context!(
-        memb,
-        RcuContextMemb,
-        RcuUnsafeMemb,
-        RcuGuardMemb,
-        RcuPollerMemb
-    );
-}
-
-#[cfg(feature = "flavor-qsbr")]
-pub(crate) mod qsbr {
-    use super::*;
-
-    use urcu_qsbr_sys::{
-        urcu_qsbr_barrier,
-        urcu_qsbr_call_rcu,
-        urcu_qsbr_init,
-        urcu_qsbr_poll_state_synchronize_rcu,
-        urcu_qsbr_read_lock,
-        urcu_qsbr_read_unlock,
-        urcu_qsbr_register_thread,
-        urcu_qsbr_start_poll_synchronize_rcu,
-        urcu_qsbr_synchronize_rcu,
-        urcu_qsbr_unregister_thread,
-        RCU_API,
-    };
-
-    define_rcu_guard!(qsbr, RcuGuardQsbr, RcuContextQsbr);
-
-    define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
-
-    define_rcu_unsafe_context!(qsbr, RcuUnsafeQsbr);
-
-    define_rcu_context!(
-        qsbr,
-        RcuContextQsbr,
-        RcuUnsafeQsbr,
-        RcuGuardQsbr,
-        RcuPollerQsbr
-    );
-}
-
-#[cfg(feature = "flavor-memb")]
-pub type DefaultContext = memb::RcuContextMemb;
+pub type DefaultContext = flavor::memb::RcuContextMemb;
 
 #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
-pub type DefaultContext = mb::RcuContextMb;
+pub type DefaultContext = flavor::mb::RcuContextMb;
 
 #[cfg(all(
     not(feature = "flavor-memb"),
     not(feature = "flavor-mb"),
     feature = "flavor-bp"
 ))]
-pub type DefaultContext = bp::RcuContextBp;
+pub type DefaultContext = flavor::bp::RcuContextBp;
 
 #[cfg(all(
     not(feature = "flavor-memb"),
@@ -487,4 +503,4 @@ pub type DefaultContext = bp::RcuContextBp;
     not(feature = "flavor-bp"),
     feature = "flavor-qsbr"
 ))]
-pub type DefaultContext = qsbr::RcuContextQsbr;
+pub type DefaultContext = flavor::qsbr::RcuContextQsbr;
