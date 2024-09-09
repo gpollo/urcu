@@ -118,7 +118,7 @@ impl ConsumerThread {
 
             if let Some(value) = value {
                 node_count += 1;
-                total_sum += value;
+                total_sum += *value;
             } else if self.publisher_count.load(Ordering::Relaxed) == 0 {
                 break;
             }
@@ -132,7 +132,6 @@ impl ConsumerThread {
 }
 
 fn main() {
-    // env_logger::init();
     let list = RcuList::<u32, RcuContextMemb>::new();
     let exit = Arc::new(AtomicBool::new(false));
     let exit_signal = exit.clone();

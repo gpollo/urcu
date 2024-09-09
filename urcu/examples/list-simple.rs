@@ -1,12 +1,7 @@
-use std::sync::Arc;
-use std::time::Duration;
-
 use urcu::linked_list::RcuList;
-use urcu::{rcu_take_ownership, RcuContext, RcuContextMemb};
+use urcu::{rcu_take_ownership, RcuContextMemb};
 
 fn main() {
-    // env_logger::init();
-
     let mut context = RcuContextMemb::new().unwrap();
     let list = RcuList::<u32, RcuContextMemb>::new();
 
@@ -23,7 +18,7 @@ fn main() {
     let v30 = writer.pop_back().unwrap();
 
     let (v10, v20, v30) = rcu_take_ownership!(&mut context, v10, v20, v30);
-    assert_eq!(v10, 10);
-    assert_eq!(v20, 20);
-    assert_eq!(v30, 30);
+    assert_eq!(*v10, 10);
+    assert_eq!(*v20, 20);
+    assert_eq!(*v30, 30);
 }
