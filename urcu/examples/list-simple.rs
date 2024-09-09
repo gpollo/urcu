@@ -1,5 +1,6 @@
+use urcu::flavor::RcuContextMemb;
 use urcu::linked_list::RcuList;
-use urcu::{rcu_take_ownership, RcuContextMemb};
+use urcu::rcu_take_ownership;
 
 fn main() {
     let mut context = RcuContextMemb::new().unwrap();

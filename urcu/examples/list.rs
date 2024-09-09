@@ -1,8 +1,9 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use urcu::flavor::RcuContextMemb;
 use urcu::linked_list::RcuList;
-use urcu::{rcu_take_ownership, RcuContext, RcuContextMemb};
+use urcu::{rcu_take_ownership, RcuContext};
 
 struct ReaderThread {
     publisher_count: Arc<AtomicUsize>,
