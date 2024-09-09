@@ -25,5 +25,5 @@ flavor-memb = ["dep:urcu-memb-sys"]
 flavor-qsbr = ["dep:urcu-qsbr-sys"]
 
 [dev-dependencies]
-env_logger = "0.11"
 ctrlc = "3"
+env_logger = "0.11"
