@@ -148,14 +148,14 @@ macro_rules! define_rcu_guard {
     ($flavor:ident, $guard:ident, $context:ident) => {
         #[doc = concat!("Defines a guard for an RCU critical section (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
-        pub struct $guard<'a>(&'a $context);
+        pub struct $guard<'a>(PhantomData<&'a $context>);
 
         impl<'a> $guard<'a> {
-            fn new(context: &'a $context) -> Self {
+            fn new(_context: &'a $context) -> Self {
                 // SAFETY: The RCU region is unlocked upon dropping.
                 unsafe { urcu_func!($flavor, read_lock)() }
 
-                Self(context)
+                Self(PhantomData)
             }
         }
 
@@ -172,12 +172,12 @@ macro_rules! define_rcu_poller {
     ($flavor:ident, $poller:ident, $context:ident) => {
         #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
-        pub struct $poller<'a>(&'a mut $context, urcu_sys::RcuPollState);
+        pub struct $poller<'a>(PhantomData<&'a mut $context>, urcu_sys::RcuPollState);
 
         impl<'a> $poller<'a> {
-            fn new(context: &'a mut $context) -> Self {
+            fn new(_context: &'a mut $context) -> Self {
                 // SAFETY: Context will be initialized and we may create multiple poller.
-                Self(context, unsafe {
+                Self(PhantomData, unsafe {
                     urcu_func!($flavor, start_poll_synchronize_rcu)()
                 })
             }
