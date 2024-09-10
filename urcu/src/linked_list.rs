@@ -157,7 +157,7 @@ where
                 ptr: self.ptr,
                 context: Default::default(),
             }
-            .defer_cleanup();
+            .call_cleanup();
         }
     }
 }

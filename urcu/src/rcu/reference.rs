@@ -24,8 +24,23 @@ pub unsafe trait RcuRef<C> {
     ///
     /// #### Note
     ///
+    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
+    ///
+    /// The callback is guaranteed to be executed on the current thread.
+    fn defer_cleanup(self, context: &mut C)
+    where
+        Self: Sized,
+        C: RcuContext,
+    {
+        context.rcu_defer(RcuCleanupCallback::new(self))
+    }
+
+    /// Configure a cleanup callback to be called after the grace period.
+    ///
+    /// #### Note
+    ///
     /// The reference must implement [`Send`] since the cleanup will be executed in an helper thread.
-    fn defer_cleanup(self)
+    fn call_cleanup(self)
     where
         Self: Sized + Send,
         C: RcuContext,
