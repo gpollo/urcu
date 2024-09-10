@@ -16,6 +16,7 @@ mod bindings {
 pub use bindings::{
     urcu_qsbr_barrier,
     urcu_qsbr_call_rcu,
+    urcu_qsbr_defer_barrier,
     urcu_qsbr_defer_rcu,
     urcu_qsbr_poll_state_synchronize_rcu,
     urcu_qsbr_quiescent_state,
