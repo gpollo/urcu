@@ -4,7 +4,7 @@ pub(crate) mod reference;
 use std::cell::Cell;
 use std::marker::PhantomData;
 
-use urcu_sys::RcuFlavor;
+use urcu_sys::RcuFlavorApi;
 
 use crate::rcu::callback::RcuCallback;
 use crate::rcu::reference::RcuRef;
@@ -114,7 +114,7 @@ pub unsafe trait RcuContext {
         F: RcuCallback + Send;
 
     /// Returns the API list for this RCU flavor.
-    fn rcu_api() -> &'static RcuFlavor;
+    fn rcu_api() -> &'static RcuFlavorApi;
 }
 
 macro_rules! define_rcu_take_ownership {
@@ -372,7 +372,7 @@ macro_rules! define_rcu_context {
                     });
                 }
 
-            fn rcu_api() -> &'static RcuFlavor {
+            fn rcu_api() -> &'static RcuFlavorApi {
                 &RCU_API
             }
         }

@@ -4,7 +4,7 @@ mod bindings {
 }
 
 pub use bindings::{
-    rcu_flavor_struct as RcuFlavor,
+    rcu_flavor_struct as RcuFlavorApi,
     rcu_head as RcuHead,
     urcu_atfork as RcuAtFork,
     urcu_gp_poll_state as RcuPollState,
