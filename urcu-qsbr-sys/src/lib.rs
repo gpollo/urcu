@@ -1,11 +1,11 @@
-use urcu_sys::RcuFlavor;
+use urcu_sys::RcuFlavorApi;
 
 mod bindings {
     #![allow(warnings)]
 
     use urcu_sys::{
         RcuAtFork as urcu_atfork,
-        RcuFlavor as rcu_flavor_struct,
+        RcuFlavorApi as rcu_flavor_struct,
         RcuHead as rcu_head,
         RcuPollState as urcu_gp_poll_state,
     };
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn urcu_qsbr_read_unlock() {
     bindings::urcu_qsbr_read_unlock();
 }
 
-pub static RCU_API: RcuFlavor = RcuFlavor {
+pub static RCU_API: RcuFlavorApi = RcuFlavorApi {
     read_lock: Some(urcu_qsbr_read_lock),
     read_unlock: Some(urcu_qsbr_read_unlock),
     read_ongoing: Some(urcu_qsbr_read_ongoing),
