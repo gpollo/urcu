@@ -18,6 +18,8 @@ pub use bindings::{
     urcu_memb_call_rcu,
     urcu_memb_defer_barrier,
     urcu_memb_defer_rcu,
+    urcu_memb_defer_register_thread,
+    urcu_memb_defer_unregister_thread,
     urcu_memb_init,
     urcu_memb_poll_state_synchronize_rcu,
     urcu_memb_read_lock,

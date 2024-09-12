@@ -18,6 +18,8 @@ pub use bindings::{
     urcu_qsbr_call_rcu,
     urcu_qsbr_defer_barrier,
     urcu_qsbr_defer_rcu,
+    urcu_qsbr_defer_register_thread,
+    urcu_qsbr_defer_unregister_thread,
     urcu_qsbr_poll_state_synchronize_rcu,
     urcu_qsbr_quiescent_state,
     urcu_qsbr_read_ongoing,
