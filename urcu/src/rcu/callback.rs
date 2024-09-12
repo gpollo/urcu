@@ -4,7 +4,8 @@ use std::ptr::NonNull;
 use container_of::container_of;
 use urcu_sys::RcuHead;
 
-use crate::rcu::{RcuContext, RcuRef};
+use crate::rcu::flavor::RcuFlavor;
+use crate::rcu::reference::RcuRef;
 
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///
@@ -23,9 +24,9 @@ use crate::rcu::{RcuContext, RcuRef};
 /// For example implementations, see [`RcuSimpleCallback`] and [`RcuCleanupCallback`].
 pub unsafe trait RcuCallback {
     /// Configures the callback for execution.
-    fn configure<F>(self: Box<Self>, func: F)
+    fn configure<Func>(self: Box<Self>, func: Func)
     where
-        F: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead));
+        Func: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead));
 }
 
 /// Defines a simple callback executed after the next RCU grace period.
@@ -61,9 +62,9 @@ unsafe impl<F> RcuCallback for RcuSimpleCallback<F>
 where
     F: FnOnce(),
 {
-    fn configure<P>(self: Box<Self>, func: P)
+    fn configure<Func>(self: Box<Self>, func: Func)
     where
-        P: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead)),
+        Func: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead)),
     {
         let node_ptr = Box::into_raw(self);
         let node = unsafe { &mut *node_ptr };
@@ -77,16 +78,19 @@ where
 /// Defines a cleanup callback executed after the next RCU grace period.
 ///
 /// Upon callback execution, it takes ownership of an [`RcuRef`] and drops the value.
-pub struct RcuCleanupCallback<R, C> {
+pub struct RcuCleanupCallback<R, C>
+where
+    C: RcuReader,
+{
     data: R,
     head: RcuHead,
     _context: PhantomData<C>,
 }
 
-impl<R, C> RcuCleanupCallback<R, C>
+impl<R, F> RcuCleanupCallback<R, F>
 where
     R: RcuRef<C>,
-    C: RcuContext,
+    C: RcuThread,
 {
     /// Create a cleanup RCU callback.
     pub fn new(data: R) -> Box<Self> {
@@ -97,10 +101,7 @@ where
         })
     }
 
-    unsafe extern "C" fn rcu_callback(head_ptr: *mut RcuHead)
-    where
-        R: RcuRef<C>,
-    {
+    unsafe extern "C" fn rcu_callback(head_ptr: *mut RcuHead) {
         // SAFETY: The pointers should always be valid.
         let node = Box::from_raw(container_of!(head_ptr, Self, head));
 
@@ -114,14 +115,14 @@ where
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<R, C> RcuCallback for RcuCleanupCallback<R, C>
+unsafe impl<R, F> RcuCallback for RcuCleanupCallback<R, F>
 where
-    R: RcuRef<C>,
-    C: RcuContext,
+    R: RcuRef<F>,
+    F: RcuFlavor,
 {
-    fn configure<F>(self: Box<Self>, func: F)
+    fn configure<Func>(self: Box<Self>, func: Func)
     where
-        F: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead)),
+        Func: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead)),
     {
         let node_ptr = Box::into_raw(self);
         let node = unsafe { &mut *node_ptr };
@@ -135,4 +136,9 @@ where
 /// #### Safety
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
-unsafe impl<R: Send, C> Send for RcuCleanupCallback<R, C> {}
+unsafe impl<R, F> Send for RcuCleanupCallback<R, F>
+where
+    R: Send,
+    F: RcuFlavor,
+{
+}

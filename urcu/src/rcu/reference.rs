@@ -1,5 +1,6 @@
 use crate::rcu::callback::RcuCleanupCallback;
-use crate::rcu::RcuContext;
+use crate::rcu::context::{RcuDeferrer, RcuReader, RcuThread};
+use crate::rcu::flavor::RcuFlavor;
 
 /// This trait defines an RCU reference that can be owned after an RCU grace period.
 ///
@@ -9,7 +10,10 @@ use crate::rcu::RcuContext;
 /// of the reference is never taken (e.g. [`RcuRef::take_ownership`] is not called), you need
 /// to defer cleanup with [`RcuRef::defer_cleanup`] when [`Drop::drop`] is called.
 #[must_use]
-pub unsafe trait RcuRef<C> {
+pub unsafe trait RcuRef<C>
+where
+    C: RcuThread,
+{
     /// The output type after taking ownership.
     type Output;
 
@@ -24,13 +28,13 @@ pub unsafe trait RcuRef<C> {
     ///
     /// #### Note
     ///
-    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
+    /// The function might internally execute an RCU syncronization and block.
     ///
     /// The callback is guaranteed to be executed on the current thread.
     fn defer_cleanup(self, context: &mut C)
     where
         Self: Sized,
-        C: RcuContext,
+        C: RcuDeferrer,
     {
         context.rcu_defer(RcuCleanupCallback::new(self))
     }
@@ -43,7 +47,7 @@ pub unsafe trait RcuRef<C> {
     fn call_cleanup(self)
     where
         Self: Sized + Send,
-        C: RcuContext,
+        C: RcuReader,
     {
         C::rcu_call(RcuCleanupCallback::new(self));
     }
@@ -52,9 +56,10 @@ pub unsafe trait RcuRef<C> {
 /// #### Safety
 ///
 /// It is the responsability of the underlying type to be safe.
-unsafe impl<T, C> RcuRef<C> for Option<T>
+unsafe impl<T, F> RcuRef<F> for Option<T>
 where
-    T: RcuRef<C>,
+    T: RcuRef<F>,
+    F: RcuFlavor,
 {
     type Output = Option<T::Output>;
 

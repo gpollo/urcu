@@ -7,7 +7,10 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Result};
 use guardian::ArcMutexGuardian;
 
-use crate::{DefaultContext, RcuContext, RcuRef};
+use crate::rcu::flavor::DefaultFlavor;
+use crate::rcu::reference::RcuRef;
+use crate::rcu::context::{RcuContext, RcuWriter, RcuThread, RcuReader, RcuGuard};
+use crate::{RcuCallback, RcuFlavor};
 
 struct RcuListNode<T> {
     prev: AtomicPtr<Self>,
@@ -69,10 +72,10 @@ impl<T> RcuListNode<T> {
     /// #### Safety
     ///
     /// Require mutual exclusion on the list.
-    unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C>
+    unsafe fn remove<F>(ptr: *mut Self) -> RcuListRef<T, F>
     where
         T: Send,
-        C: RcuContext,
+        F: RcuFlavor,
     {
         let node = unsafe { &*ptr };
 
@@ -92,7 +95,7 @@ impl<T> RcuListNode<T> {
 
         RcuListRef {
             ptr,
-            context: Default::default(),
+            _flavor: Default::default(),
         }
     }
 }
@@ -130,10 +133,10 @@ impl<T> DerefMut for RcuListRefOwned<T> {
 pub struct RcuListRef<T, C>
 where
     T: Send,
-    C: RcuContext,
+    C: RcuThread + RcuReader,
 {
     ptr: *mut RcuListNode<T>,
-    context: PhantomData<C>,
+    _context: PhantomData<C>,
 }
 
 /// #### Safety
@@ -142,20 +145,20 @@ where
 unsafe impl<T, C> Send for RcuListRef<T, C>
 where
     T: Send,
-    C: RcuContext,
+    C: RcuThread + RcuReader,
 {
 }
 
 impl<T, C> Drop for RcuListRef<T, C>
 where
     T: Send,
-    C: RcuContext,
+    C: RcuThread + RcuReader,
 {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
             Self {
                 ptr: self.ptr,
-                context: Default::default(),
+                _context: PhantomData,
             }
             .call_cleanup();
         }
@@ -165,10 +168,10 @@ where
 /// #### Safety
 ///
 /// The memory reclamation upon dropping is properly deferred after the RCU grace period.
-unsafe impl<T, C> RcuRef<C> for RcuListRef<T, C>
+unsafe impl<T, F> RcuRef<F> for RcuListRef<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Output = RcuListRefOwned<T>;
 
@@ -182,10 +185,10 @@ where
     }
 }
 
-impl<T, C> Deref for RcuListRef<T, C>
+impl<T, F> Deref for RcuListRef<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Target = T;
 
@@ -218,27 +221,27 @@ where
 /// Because a writer might concurrently modify the list, it is possible that `node.next.prev != node`.
 /// To prevent user error, this linked list does not support bidirectional iteration.
 /// For example, if you create an forward iterator, it can only go forward.
-pub struct RcuList<T, C = DefaultContext> {
+pub struct RcuList<T, F = DefaultFlavor> {
     head: AtomicPtr<RcuListNode<T>>,
     tail: AtomicPtr<RcuListNode<T>>,
     mutex: Arc<Mutex<()>>,
     // Also prevents auto-trait implementation of [`Send`] and [`Sync`].
-    context: PhantomData<*const C>,
+    _flavor: PhantomData<*const F>,
 }
 
-impl<T, C> RcuList<T, C> {
+impl<T, F> RcuList<T, F> {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             head: AtomicPtr::new(std::ptr::null_mut()),
             tail: AtomicPtr::new(std::ptr::null_mut()),
             mutex: Arc::default(),
-            context: PhantomData,
+            _flavor: PhantomData,
         })
     }
 
-    pub fn reader<'a>(self: &'a Arc<Self>, guard: &'a C::Guard<'a>) -> RcuListReader<'a, T, C>
+    pub fn reader<'a, C>(self: &'a Arc<Self>, guard: &'a RcuGuard<'a, C>) -> RcuListReader<'a, T, C>
     where
-        C: RcuContext + 'a,
+        C: RcuThread<Flavor = F> + 'a,
     {
         RcuListReader {
             list: self.clone(),
@@ -246,7 +249,7 @@ impl<T, C> RcuList<T, C> {
         }
     }
 
-    pub fn writer(self: &Arc<Self>) -> Result<RcuListWriter<T, C>> {
+    pub fn writer(self: &Arc<Self>) -> Result<RcuListWriter<T, F>> {
         Ok(RcuListWriter {
             list: self.clone(),
             guard: ArcMutexGuardian::take(self.mutex.clone())
@@ -280,16 +283,16 @@ unsafe impl<T, C> Sync for RcuList<T, C> where T: Sync {}
 /// The read-side API of an [`RcuList`].
 pub struct RcuListReader<'a, T, C>
 where
-    C: RcuContext + 'a,
+    C: RcuThread + 'a,
 {
-    list: Arc<RcuList<T, C>>,
+    list: Arc<RcuList<T, C::Flavor>>,
     #[allow(dead_code)]
-    guard: &'a C::Guard<'a>,
+    guard: &'a RcuGuard<'a, C>,
 }
 
 impl<'a, T, C> RcuListReader<'a, T, C>
 where
-    C: RcuContext + 'a,
+    C: RcuThread + 'a,
 {
     pub fn iter_forward(&self) -> RcuListIterator<T, &Self> {
         RcuListIterator {
@@ -309,17 +312,17 @@ where
 }
 
 /// The write-side API of an [`RcuList`].
-pub struct RcuListWriter<T, C> {
-    list: Arc<RcuList<T, C>>,
+pub struct RcuListWriter<T, F> {
+    list: Arc<RcuList<T, F>>,
     #[allow(dead_code)]
     guard: ArcMutexGuardian<()>,
 }
 
-impl<T, C> RcuListWriter<T, C> {
-    pub fn pop_back(&mut self) -> Option<RcuListRef<T, C>>
+impl<T, F> RcuListWriter<T, F> {
+    pub fn pop_back(&mut self) -> Option<RcuListRef<T, F>>
     where
         T: Send,
-        C: RcuContext,
+        F: RcuFlavor,
     {
         let node_ptr = self.list.tail.load(Ordering::Acquire);
         if node_ptr.is_null() {
@@ -337,10 +340,10 @@ impl<T, C> RcuListWriter<T, C> {
         )
     }
 
-    pub fn pop_front(&mut self) -> Option<RcuListRef<T, C>>
+    pub fn pop_front(&mut self) -> Option<RcuListRef<T, F>>
     where
         T: Send,
-        C: RcuContext,
+        F: RcuFlavor,
     {
         let node_ptr = self.list.head.load(Ordering::Acquire);
         if node_ptr.is_null() {
@@ -386,14 +389,14 @@ impl<T, C> RcuListWriter<T, C> {
 }
 
 /// An individual entry in an [`RcuList`].
-pub struct RcuListEntry<'a, T, C> {
-    list: Arc<RcuList<T, C>>,
+pub struct RcuListEntry<'a, T, F> {
+    list: Arc<RcuList<T, F>>,
     node: NonNull<RcuListNode<T>>,
     #[allow(dead_code)]
     life: PhantomData<&'a T>,
 }
 
-impl<'a, T, C> RcuListEntry<'a, T, C> {
+impl<'a, T, F> RcuListEntry<'a, T, F> {
     /// Inserts a node after this entry.
     pub fn insert_after(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
@@ -425,10 +428,10 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     }
 
     /// Removes the node from the list.
-    pub fn remove(self) -> RcuListRef<T, C>
+    pub fn remove(self) -> RcuListRef<T, F>
     where
         T: Send,
-        C: RcuContext,
+        F: RcuFlavor,
     {
         let node = unsafe { self.node.as_ref() };
         let node_prev = node.prev.load(Ordering::Acquire);
@@ -456,7 +459,7 @@ pub struct RcuListIterator<T, O> {
 
 impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListReader<'a, T, C>>
 where
-    C: RcuContext + 'a,
+    C: RcuThread + 'a,
 {
     type Item = &'a T;
 
@@ -477,7 +480,7 @@ where
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
+impl<'a, T, F> Iterator for RcuListIterator<T, &'a RcuListWriter<T, F>> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -497,8 +500,8 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
-    type Item = RcuListEntry<'a, T, C>;
+impl<'a, T, F> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, F>> {
+    type Item = RcuListEntry<'a, T, F>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.ptr.is_null() {
