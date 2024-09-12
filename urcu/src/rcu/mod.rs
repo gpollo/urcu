@@ -298,6 +298,7 @@ macro_rules! define_rcu_context {
 
                         urcu_func!($flavor, init)();
                         urcu_func!($flavor, register_thread)();
+                        urcu_func!($flavor, defer_register_thread)();
                     }
 
                     Some(Self(PhantomData))
@@ -316,10 +317,9 @@ macro_rules! define_rcu_context {
                         stringify!($flavor),
                     );
 
-                    urcu_func!($flavor, barrier)();
-
                     urcu_func!($flavor, defer_barrier)();
-
+                    urcu_func!($flavor, defer_unregister_thread)();
+                    urcu_func!($flavor, barrier)();
                     urcu_func!($flavor, unregister_thread)();
                 }
             }
@@ -391,6 +391,8 @@ pub mod flavor {
             urcu_bp_call_rcu,
             urcu_bp_defer_barrier,
             urcu_bp_defer_rcu,
+            urcu_bp_defer_register_thread,
+            urcu_bp_defer_unregister_thread,
             urcu_bp_init,
             urcu_bp_poll_state_synchronize_rcu,
             urcu_bp_read_lock,
@@ -420,6 +422,8 @@ pub mod flavor {
             urcu_mb_call_rcu,
             urcu_mb_defer_barrier,
             urcu_mb_defer_rcu,
+            urcu_mb_defer_register_thread,
+            urcu_mb_defer_unregister_thread,
             urcu_mb_init,
             urcu_mb_poll_state_synchronize_rcu,
             urcu_mb_read_lock,
@@ -449,6 +453,8 @@ pub mod flavor {
             urcu_memb_call_rcu,
             urcu_memb_defer_barrier,
             urcu_memb_defer_rcu,
+            urcu_memb_defer_register_thread,
+            urcu_memb_defer_unregister_thread,
             urcu_memb_init,
             urcu_memb_poll_state_synchronize_rcu,
             urcu_memb_read_lock,
@@ -484,6 +490,8 @@ pub mod flavor {
             urcu_qsbr_call_rcu,
             urcu_qsbr_defer_barrier,
             urcu_qsbr_defer_rcu,
+            urcu_qsbr_defer_register_thread,
+            urcu_qsbr_defer_unregister_thread,
             urcu_qsbr_init,
             urcu_qsbr_poll_state_synchronize_rcu,
             urcu_qsbr_read_lock,
