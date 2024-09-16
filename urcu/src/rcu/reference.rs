@@ -62,3 +62,17 @@ where
         self.map(|r| r.take_ownership())
     }
 }
+
+/// #### Safety
+///
+/// It is the responsability of the underlying type to be safe.
+unsafe impl<T, C> RcuRef<C> for Vec<T>
+where
+    T: RcuRef<C>,
+{
+    type Output = Vec<T::Output>;
+
+    unsafe fn take_ownership(self) -> Self::Output {
+        self.into_iter().map(|r| r.take_ownership()).collect()
+    }
+}
