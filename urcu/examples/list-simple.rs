@@ -1,9 +1,9 @@
 use urcu::flavor::RcuContextMemb;
 use urcu::linked_list::RcuList;
-use urcu::{rcu_take_ownership, RcuRef};
+use urcu::{rcu_take_ownership, RcuContext, RcuRef};
 
 fn main() {
-    let mut context = RcuContextMemb::new().unwrap();
+    let mut context = RcuContextMemb::rcu_register().unwrap();
     let list = RcuList::<u32, RcuContextMemb>::new();
 
     let mut writer = list.writer().unwrap();

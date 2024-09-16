@@ -19,7 +19,7 @@ impl ReaderThread {
     }
 
     fn run(self) {
-        let context = RcuContextMemb::new().unwrap();
+        let context = RcuContextMemb::rcu_register().unwrap();
 
         let mut node_count = 0;
         let mut total_sum = 0;
@@ -107,7 +107,7 @@ impl ConsumerThread {
     }
 
     fn run(self) {
-        let mut context = RcuContextMemb::new().unwrap();
+        let mut context = RcuContextMemb::rcu_register().unwrap();
 
         let mut node_count = 0;
         let mut total_sum = 0;

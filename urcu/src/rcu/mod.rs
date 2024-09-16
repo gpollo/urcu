@@ -72,6 +72,15 @@ pub unsafe trait RcuContext {
     where
         Self: 'a;
 
+    /// Register the current thread to RCU.
+    ///
+    /// #### Note
+    ///
+    /// This can only be called once per thread.
+    fn rcu_register() -> Option<Self>
+    where
+        Self: Sized;
+
     /// Starts an RCU critical section.
     ///
     /// #### Note
@@ -279,7 +288,7 @@ macro_rules! define_rcu_context {
             ///
             /// Only the first call will return a context.
             /// Subsequent calls on the same thread will return nothing.
-            pub fn new() -> Option<Self> {
+            fn new() -> Option<Self> {
                 thread_local! {static RCU_CONTEXT: Cell<bool> = Cell::new(false)};
 
                 RCU_CONTEXT.with(|initialized| {
@@ -336,6 +345,13 @@ macro_rules! define_rcu_context {
             type Guard<'a> = $guard<'a>;
 
             type Poller<'a> = $poller<'a>;
+
+            fn rcu_register() -> Option<Self>
+            where
+                Self: Sized
+            {
+                Self::new()
+            }
 
             fn rcu_read_lock(&self) -> Self::Guard<'_> {
                 $guard::new(self)
