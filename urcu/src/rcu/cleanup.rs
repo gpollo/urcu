@@ -13,11 +13,10 @@ use std::thread::JoinHandle;
 
 use super::RcuContext;
 
-// TODO: rename
-pub(crate) type RcuCleanupCallback2<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
+pub type RcuCleanup<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
 
 enum RcuCleanerCommand<C> {
-    Execute(RcuCleanupCallback2<C>),
+    Execute(RcuCleanup<C>),
     Shutdown,
 }
 
@@ -106,7 +105,7 @@ struct RcuCleanupSender<C> {
 }
 
 impl<C> RcuCleanupSender<C> {
-    pub fn send(&self, callback: RcuCleanupCallback2<C>) {
+    pub fn send(&self, callback: RcuCleanup<C>) {
         if self
             .callbacks
             .send(RcuCleanerCommand::Execute(callback))
@@ -131,7 +130,7 @@ macro_rules! impl_cleanup_for_context {
                 static CLEANUP_SENDER: OnceCell<RcuCleanupSender<$context>> = OnceCell::new();
             }
 
-            pub(crate) fn cleanup_send(callback: RcuCleanupCallback2<Self>) {
+            pub(crate) fn cleanup_send(callback: RcuCleanup<Self>) {
                 Self::CLEANUP_SENDER.with(|cell| {
                     cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
                         .send(callback);

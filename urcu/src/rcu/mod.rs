@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use urcu_sys::RcuFlavorApi;
 
 use crate::rcu::callback::{RcuCallConfig, RcuDeferConfig};
-use crate::rcu::cleanup::RcuCleanupCallback2;
+use crate::rcu::cleanup::RcuCleanup;
 use crate::rcu::reference::RcuRef;
 
 /// This trait is used to manually poll the RCU grace period.
@@ -134,7 +134,7 @@ pub unsafe trait RcuContext {
     /// #### Note
     ///
     /// The callback must be [`Send`] because it will be executed by an helper thread.
-    fn rcu_cleanup(callback: RcuCleanupCallback2<Self>);
+    fn rcu_cleanup(callback: RcuCleanup<Self>);
 
     /// Returns the API list for this RCU flavor.
     fn rcu_api() -> &'static RcuFlavorApi;
@@ -401,7 +401,7 @@ macro_rules! define_rcu_context {
                 });
             }
 
-            fn rcu_cleanup(callback: RcuCleanupCallback2<Self>) {
+            fn rcu_cleanup(callback: RcuCleanup<Self>) {
                 Self::cleanup_send(callback);
             }
 
