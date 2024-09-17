@@ -18,7 +18,7 @@ use urcu_sys::RcuHead;
 /// When [`RcuCallConfig::configure`] is called, you must deliberately leak your type
 /// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
 /// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
-/// free up memory. For an example, see [`RcuSimpleCallback`].
+/// free up memory. For an example, see [`RcuCallSimple`].
 ///
 /// Unlike [`RcuDeferConfig`], we resulting pointer must be an [`RcuHead`] inside
 /// your data. You can use [`container_of!`] to get back the type implementing this
@@ -31,12 +31,12 @@ pub unsafe trait RcuCallConfig {
 }
 
 /// Defines a simple callback executed after the next RCU grace period.
-pub struct RcuSimpleCallback<F> {
+pub struct RcuCallSimple<F> {
     func: F,
     head: RcuHead,
 }
 
-impl<F> RcuSimpleCallback<F> {
+impl<F> RcuCallSimple<F> {
     /// Create a simple RCU callback.
     pub fn new(func: F) -> Box<Self> {
         Box::new(Self {
@@ -59,7 +59,7 @@ impl<F> RcuSimpleCallback<F> {
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<F> RcuCallConfig for RcuSimpleCallback<F>
+unsafe impl<F> RcuCallConfig for RcuCallSimple<F>
 where
     F: FnOnce(),
 {
@@ -79,7 +79,7 @@ where
 /// #### Safety
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
-unsafe impl<F> Send for RcuSimpleCallback<F> where F: Send {}
+unsafe impl<F> Send for RcuCallSimple<F> where F: Send {}
 
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///
