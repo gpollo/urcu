@@ -1,4 +1,5 @@
 pub(crate) mod callback;
+pub(crate) mod cleanup;
 pub(crate) mod reference;
 
 use std::cell::Cell;
@@ -7,6 +8,7 @@ use std::marker::PhantomData;
 use urcu_sys::RcuFlavorApi;
 
 use crate::rcu::callback::RcuCallback;
+use crate::rcu::cleanup::RcuCleanupCallback2;
 use crate::rcu::reference::RcuRef;
 
 /// This trait is used to manually poll the RCU grace period.
@@ -117,10 +119,20 @@ pub unsafe trait RcuContext {
     ///
     /// #### Note
     ///
-    /// The callback must be [`Send`] because it will be executed by a helper thread.
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
     fn rcu_call<F>(callback: Box<F>)
     where
         F: RcuCallback + Send;
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// Unlike [`RcuContext::rcu_call`], this function can be called by any thread whether
+    /// it is registered or not.
+    ///
+    /// #### Note
+    ///
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
+    fn rcu_cleanup(callback: RcuCleanupCallback2<Self>);
 
     /// Returns the API list for this RCU flavor.
     fn rcu_api() -> &'static RcuFlavorApi;
@@ -317,6 +329,9 @@ macro_rules! define_rcu_context {
 
         impl Drop for $context {
             fn drop(&mut self) {
+                // Removes the cleanup thread if possible.
+                Self::cleanup_remove();
+
                 // SAFETY: The unregistration may only be called once per thread.
                 unsafe {
                     log::info!(
@@ -387,6 +402,10 @@ macro_rules! define_rcu_context {
                         urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
                     });
                 }
+
+            fn rcu_cleanup(callback: RcuCleanupCallback2<Self>) {
+                Self::cleanup_send(callback);
+            }
 
             fn rcu_api() -> &'static RcuFlavorApi {
                 &RCU_API

@@ -47,6 +47,21 @@ pub unsafe trait RcuRef<C> {
     {
         C::rcu_call(RcuCleanupCallback::new(self));
     }
+
+    fn safe_cleanup(self)
+    where
+        Self: Sized + Send + 'static,
+        C: RcuContext,
+    {
+        C::rcu_cleanup(Box::new(move |context| {
+            context.rcu_synchronize();
+
+            // SAFETY: An RCU syncronization barrier was called.
+            unsafe {
+                self.take_ownership();
+            }
+        }));
+    }
 }
 
 /// #### Safety
