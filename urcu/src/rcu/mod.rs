@@ -119,10 +119,12 @@ pub unsafe trait RcuContext {
     ///
     /// #### Note
     ///
+    /// The function will internally call [`RcuContext::rcu_read_lock`].
+    ///
     /// The callback must be [`Send`] because it will be executed by an helper thread.
-    fn rcu_call<F>(callback: Box<F>)
+    fn rcu_call<F>(&self, callback: Box<F>)
     where
-        F: RcuCallback + Send;
+        F: RcuCallback + Send + 'static;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -395,13 +397,14 @@ macro_rules! define_rcu_context {
                     });
                 }
 
-            fn rcu_call<F>(callback: Box<F>)
+            fn rcu_call<F>(&self, callback: Box<F>)
             where
-                F: RcuCallback + Send {
-                    callback.configure(|mut head, func| unsafe {
-                        urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
-                    });
-                }
+                F: RcuCallback + Send + 'static
+            {
+                callback.configure(|mut head, func| unsafe {
+                    urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
+                });
+            }
 
             fn rcu_cleanup(callback: RcuCleanupCallback2<Self>) {
                 Self::cleanup_send(callback);

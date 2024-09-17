@@ -5,9 +5,38 @@ use crate::rcu::RcuContext;
 ///
 /// #### Safety
 ///
-/// You need to ensure that dropping the type does not cause a memory leak. If the ownership
-/// of the reference is never taken (e.g. [`RcuRef::take_ownership`] is not called), you need
-/// to defer cleanup with [`RcuRef::defer_cleanup`] when [`Drop::drop`] is called.
+/// * The underlying reference must be cleaned up upon dropping (see below).
+/// * There may be immutable borrows to the underlying reference.
+/// * There must not be any mutable borrows to the underlying reference.
+///
+/// #### Dropping
+///
+/// An [`RcuRef`] should always cleanup when [`Drop::drop`] is executed by taking
+/// ownership and dropping the underlying value.
+///
+/// * We cannot call [`RcuContext::rcu_synchronize`] since we can't be sure that
+///   an RCU read lock is currently held or not[^mborrow].
+///
+/// Because an [`RcuRef`] can be sent to any thread, we cannot guarantee that a
+/// thread executing [`Drop::drop`] is properly registered.
+///
+/// * We cannot call [`RcuContext::rcu_defer`] since we can't enforce that the
+///   thread is registered with the RCU defer mecanisms[^mborrow].
+/// * We cannot call [`RcuContext::rcu_call`] since we can't enforce that the
+///   thread is registered with the RCU read mecanisms[^cborrow].
+///
+/// The only way to keep the safety guarantees of this crate is to use the custom
+/// cleanup thread through [`RcuRef::safe_cleanup`]. It is similar to the built-in
+/// [`RcuContext::rcu_call`], except it doesn't expect the calling thread to be
+/// registered with RCU in any way.
+///
+/// The downside is that it is most likely worst than [`RcuContext::rcu_call`] in
+/// every way. If it is a performance problem, the owner of an [`RcuRef`] can alway
+/// use [`RcuRef::defer_cleanup`] and [`RcuRef::call_cleanup`] before [`Drop::drop`]
+/// is called.
+///
+/// [^mborrow]: Unless your [`RcuRef`] has a mutable borrow of an [`RcuContext`].
+/// [^cborrow]: Unless your [`RcuRef`] has an immutable borrow of an [`RcuContext`].
 #[must_use]
 pub unsafe trait RcuRef<C> {
     /// The output type after taking ownership.
@@ -39,13 +68,15 @@ pub unsafe trait RcuRef<C> {
     ///
     /// #### Note
     ///
+    /// The function will internally call [`RcuContext::rcu_read_lock`].
+    ///
     /// The reference must implement [`Send`] since the cleanup will be executed in an helper thread.
-    fn call_cleanup(self)
+    fn call_cleanup(self, context: &C)
     where
-        Self: Sized + Send,
-        C: RcuContext,
+        Self: Sized + Send + 'static,
+        C: RcuContext + 'static,
     {
-        C::rcu_call(RcuCleanupCallback::new(self));
+        context.rcu_call(RcuCleanupCallback::new(self));
     }
 
     fn safe_cleanup(self)

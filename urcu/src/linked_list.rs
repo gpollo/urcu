@@ -129,8 +129,8 @@ impl<T> DerefMut for RcuListRefOwned<T> {
 #[must_use]
 pub struct RcuListRef<T, C>
 where
-    T: Send,
-    C: RcuContext,
+    T: Send + 'static,
+    C: RcuContext + 'static,
 {
     ptr: *mut RcuListNode<T>,
     context: PhantomData<C>,
@@ -148,8 +148,8 @@ where
 
 impl<T, C> Drop for RcuListRef<T, C>
 where
-    T: Send,
-    C: RcuContext,
+    T: Send + 'static,
+    C: RcuContext + 'static,
 {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
@@ -157,7 +157,7 @@ where
                 ptr: self.ptr,
                 context: Default::default(),
             }
-            .call_cleanup();
+            .safe_cleanup();
         }
     }
 }

@@ -17,6 +17,8 @@ fn main() {
     let v10 = writer.pop_back().unwrap();
     let v20 = writer.pop_back().unwrap();
     writer.pop_back().unwrap().defer_cleanup(&mut context);
+    writer.pop_back().unwrap().call_cleanup(&context);
+    writer.pop_back().unwrap().safe_cleanup();
 
     let (v10, v20) = rcu_take_ownership!(&mut context, v10, v20);
     assert_eq!(*v10, 10);
