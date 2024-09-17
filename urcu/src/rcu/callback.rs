@@ -74,6 +74,11 @@ where
     }
 }
 
+/// #### Safety
+///
+/// The callback can be sent to another thread if the reference implements [`Send`].
+unsafe impl<F> Send for RcuSimpleCallback<F> where F: FnOnce() + Send {}
+
 /// Defines a cleanup callback executed after the next RCU grace period.
 ///
 /// Upon callback execution, it takes ownership of an [`RcuRef`] and drops the value.
