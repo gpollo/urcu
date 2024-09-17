@@ -32,13 +32,13 @@ pub unsafe trait RcuCallConfig {
 
 /// Defines a simple callback executed after the next RCU grace period.
 pub struct RcuSimpleCallback<F> {
-    func: Box<F>,
+    func: F,
     head: RcuHead,
 }
 
 impl<F> RcuSimpleCallback<F> {
     /// Create a simple RCU callback.
-    pub fn new(func: Box<F>) -> Box<Self> {
+    pub fn new(func: F) -> Box<Self> {
         Box::new(Self {
             func,
             head: Default::default(),
@@ -79,7 +79,7 @@ where
 /// #### Safety
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
-unsafe impl<F> Send for RcuSimpleCallback<F> where F: FnOnce() + Send {}
+unsafe impl<F> Send for RcuSimpleCallback<F> where F: Send {}
 
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///

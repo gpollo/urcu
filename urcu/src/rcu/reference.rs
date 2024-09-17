@@ -81,12 +81,12 @@ pub unsafe trait RcuRef<C> {
         Self: Sized + Send + 'static,
         C: RcuContext + 'static,
     {
-        context.rcu_call(RcuSimpleCallback::new(Box::new(move || {
+        context.rcu_call(RcuSimpleCallback::new(move || {
             // SAFETY: The caller already executed an RCU syncronization.
             unsafe {
                 self.take_ownership();
             }
-        })));
+        }));
     }
 
     fn safe_cleanup(self)
