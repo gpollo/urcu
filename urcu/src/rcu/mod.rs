@@ -101,8 +101,8 @@ pub unsafe trait RcuContext {
     ///
     /// #### Note
     ///
-    /// It cannot be called in an RCU critical section.
-    fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_>;
+    /// It may be called in an RCU critical section.
+    fn rcu_synchronize_poller(&self) -> Self::Poller<'_>;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -264,10 +264,10 @@ macro_rules! define_rcu_poller {
     ($flavor:ident, $poller:ident, $context:ident) => {
         #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
-        pub struct $poller<'a>(PhantomData<&'a mut $context>, urcu_sys::RcuPollState);
+        pub struct $poller<'a>(PhantomData<&'a $context>, urcu_sys::RcuPollState);
 
         impl<'a> $poller<'a> {
-            fn new(_context: &'a mut $context) -> Self {
+            fn new(_context: &'a $context) -> Self {
                 // SAFETY: Context will be initialized and we may create multiple poller.
                 Self(PhantomData, unsafe {
                     urcu_func!($flavor, start_poll_synchronize_rcu)()
@@ -379,7 +379,7 @@ macro_rules! define_rcu_context {
                 unsafe { urcu_func!($flavor, synchronize_rcu)() }
             }
 
-            fn rcu_synchronize_poller(&mut self) -> Self::Poller<'_> {
+            fn rcu_synchronize_poller(&self) -> Self::Poller<'_> {
                 $poller::new(self)
             }
 
