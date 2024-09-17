@@ -15,15 +15,15 @@ use urcu_sys::RcuHead;
 ///
 /// #### Safety
 ///
-/// When [`RcuCallConfig::configure`] is called, you must deliberately leak your type
+/// When [`RcuCall::configure`] is called, you must deliberately leak your type
 /// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
 /// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
 /// free up memory. For an example, see [`RcuCallSimple`].
 ///
-/// Unlike [`RcuDeferConfig`], we resulting pointer must be an [`RcuHead`] inside
+/// Unlike [`RcuDefer`], we resulting pointer must be an [`RcuHead`] inside
 /// your data. You can use [`container_of!`] to get back the type implementing this
 /// trait.
-pub unsafe trait RcuCallConfig {
+pub unsafe trait RcuCall {
     /// Configures the callback for execution.
     fn configure<F>(self: Box<Self>, func: F)
     where
@@ -59,7 +59,7 @@ impl<F> RcuCallSimple<F> {
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<F> RcuCallConfig for RcuCallSimple<F>
+unsafe impl<F> RcuCall for RcuCallSimple<F>
 where
     F: FnOnce(),
 {
@@ -91,11 +91,11 @@ unsafe impl<F> Send for RcuCallSimple<F> where F: Send {}
 ///
 /// #### Safety
 ///
-/// When [`RcuDeferConfig::configure`] is called, you must deliberately leak your type
+/// When [`RcuDefer::configure`] is called, you must deliberately leak your type
 /// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
 /// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
 /// free up memory. For an example, see [`RcuDeferSimple`].
-pub unsafe trait RcuDeferConfig {
+pub unsafe trait RcuDefer {
     /// Configures the callback for execution.
     fn configure<F>(self: Box<Self>, func: F)
     where
@@ -132,7 +132,7 @@ impl<F, C> RcuDeferSimple<F, C> {
     }
 }
 
-unsafe impl<F, C> RcuDeferConfig for RcuDeferSimple<F, C>
+unsafe impl<F, C> RcuDefer for RcuDeferSimple<F, C>
 where
     F: FnOnce(),
 {

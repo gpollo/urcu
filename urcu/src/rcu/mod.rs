@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use urcu_sys::RcuFlavorApi;
 
-use crate::rcu::callback::{RcuCallConfig, RcuDeferConfig};
+use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::cleanup::RcuCleanup;
 use crate::rcu::reference::RcuRef;
 
@@ -113,7 +113,7 @@ pub unsafe trait RcuContext {
     /// The callback is guaranteed to be executed on the current thread.
     fn rcu_defer<F>(&mut self, callback: Box<F>)
     where
-        F: RcuDeferConfig;
+        F: RcuDefer;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -124,7 +124,7 @@ pub unsafe trait RcuContext {
     /// The callback must be [`Send`] because it will be executed by an helper thread.
     fn rcu_call<F>(&self, callback: Box<F>)
     where
-        F: RcuCallConfig + Send + 'static;
+        F: RcuCall + Send + 'static;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -385,7 +385,7 @@ macro_rules! define_rcu_context {
 
             fn rcu_defer<F>(&mut self, callback: Box<F>)
             where
-                F: RcuDeferConfig
+                F: RcuDefer
             {
                 callback.configure(|mut ptr, func| unsafe {
                     urcu_func!($flavor, defer_rcu)(Some(func), ptr.as_mut());
@@ -394,7 +394,7 @@ macro_rules! define_rcu_context {
 
             fn rcu_call<F>(&self, callback: Box<F>)
             where
-                F: RcuCallConfig + Send + 'static
+                F: RcuCall + Send + 'static
             {
                 callback.configure(|mut head, func| unsafe {
                     urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
