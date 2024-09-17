@@ -22,7 +22,7 @@ impl ReaderThread {
         let context = RcuContextMemb::rcu_register().unwrap();
 
         let mut node_count = 0;
-        let mut total_sum = 0;
+        let mut total_sum = 0u128;
 
         loop {
             let guard = context.rcu_read_lock();
@@ -37,7 +37,7 @@ impl ReaderThread {
 
             for value in reader.iter_forward() {
                 node_count += 1;
-                total_sum += value;
+                total_sum += u128::from(*value);
             }
         }
 
@@ -71,7 +71,7 @@ impl PublisherThread {
 
     fn run(self) {
         let mut node_count = 0;
-        let mut total_sum = 0;
+        let mut total_sum = 0u128;
         let mut value = 0;
 
         while !self.exit_signal.load(Ordering::Relaxed) {
@@ -80,7 +80,7 @@ impl PublisherThread {
             writer.push_front(value);
 
             node_count += 2;
-            total_sum += 2 * value;
+            total_sum += 2 * u128::from(value);
             value = (value + 1) % 1000;
         }
 
@@ -110,7 +110,7 @@ impl ConsumerThread {
         let mut context = RcuContextMemb::rcu_register().unwrap();
 
         let mut node_count = 0;
-        let mut total_sum = 0;
+        let mut total_sum = 0u128;
 
         loop {
             let mut writer = self.list.writer().unwrap();
@@ -119,7 +119,7 @@ impl ConsumerThread {
 
             if let Some(value) = value {
                 node_count += 1;
-                total_sum += *value;
+                total_sum += u128::from(*value);
             } else if self.publisher_count.load(Ordering::Relaxed) == 0 {
                 break;
             }
