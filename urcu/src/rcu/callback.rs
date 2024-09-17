@@ -5,8 +5,6 @@ use std::ptr::NonNull;
 use container_of::container_of;
 use urcu_sys::RcuHead;
 
-use crate::rcu::{RcuContext, RcuRef};
-
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///
 /// #### Implementation
@@ -79,69 +77,6 @@ where
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
 unsafe impl<F> Send for RcuSimpleCallback<F> where F: FnOnce() + Send {}
-
-/// Defines a cleanup callback executed after the next RCU grace period.
-///
-/// Upon callback execution, it takes ownership of an [`RcuRef`] and drops the value.
-pub struct RcuCleanupCallback<R, C> {
-    data: R,
-    head: RcuHead,
-    _context: PhantomData<C>,
-}
-
-impl<R, C> RcuCleanupCallback<R, C>
-where
-    R: RcuRef<C>,
-    C: RcuContext,
-{
-    /// Create a cleanup RCU callback.
-    pub fn new(data: R) -> Box<Self> {
-        Box::new(Self {
-            data,
-            head: Default::default(),
-            _context: Default::default(),
-        })
-    }
-
-    unsafe extern "C" fn rcu_callback(head_ptr: *mut RcuHead)
-    where
-        R: RcuRef<C>,
-    {
-        // SAFETY: The pointers should always be valid.
-        let node = Box::from_raw(container_of!(head_ptr, Self, head));
-
-        // SAFETY: This callback is always called after an RCU grace period.
-        let data = node.data.take_ownership();
-
-        drop(data);
-    }
-}
-
-/// #### Safety
-///
-/// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<R, C> RcuCallback for RcuCleanupCallback<R, C>
-where
-    R: RcuRef<C>,
-    C: RcuContext,
-{
-    fn configure<F>(self: Box<Self>, func: F)
-    where
-        F: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead)),
-    {
-        let node_ptr = Box::into_raw(self);
-        let node = unsafe { &mut *node_ptr };
-
-        unsafe {
-            func(NonNull::new_unchecked(&mut node.head), Self::rcu_callback);
-        }
-    }
-}
-
-/// #### Safety
-///
-/// The callback can be sent to another thread if the reference implements [`Send`].
-unsafe impl<R: Send, C> Send for RcuCleanupCallback<R, C> {}
 
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///
