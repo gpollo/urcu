@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use urcu_sys::RcuFlavorApi;
 
-use crate::rcu::callback::RcuCallback;
+use crate::rcu::callback::{RcuCallback, RcuDeferConfig};
 use crate::rcu::cleanup::RcuCleanupCallback2;
 use crate::rcu::reference::RcuRef;
 
@@ -113,7 +113,7 @@ pub unsafe trait RcuContext {
     /// The callback is guaranteed to be executed on the current thread.
     fn rcu_defer<F>(&mut self, callback: Box<F>)
     where
-        F: RcuCallback;
+        F: RcuDeferConfig;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -385,17 +385,12 @@ macro_rules! define_rcu_context {
 
             fn rcu_defer<F>(&mut self, callback: Box<F>)
             where
-                F: RcuCallback {
-                    // TODO: We could optimize deferred callbacks by not using [`RcuCallback`].
-                    type HeadPtrCallback = unsafe extern "C" fn(*mut urcu_sys::RcuHead);
-                    type VoidPtrCallback = unsafe extern "C" fn(*mut libc::c_void);
-                    callback.configure(|mut head, func| unsafe {
-                        urcu_func!($flavor, defer_rcu)(
-                            Some(std::mem::transmute::<HeadPtrCallback, VoidPtrCallback>(func)),
-                            head.as_mut() as *mut urcu_sys::RcuHead as *mut libc::c_void,
-                        );
-                    });
-                }
+                F: RcuDeferConfig
+            {
+                callback.configure(|mut ptr, func| unsafe {
+                    urcu_func!($flavor, defer_rcu)(Some(func), ptr.as_mut());
+                });
+            }
 
             fn rcu_call<F>(&self, callback: Box<F>)
             where

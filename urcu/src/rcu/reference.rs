@@ -1,4 +1,4 @@
-use crate::rcu::callback::{RcuCleanupCallback, RcuSimpleCallback};
+use crate::rcu::callback::{RcuDeferSimple, RcuSimpleCallback};
 use crate::rcu::RcuContext;
 
 /// This trait defines an RCU reference that can be owned after an RCU grace period.
@@ -61,7 +61,12 @@ pub unsafe trait RcuRef<C> {
         Self: Sized,
         C: RcuContext,
     {
-        context.rcu_defer(RcuCleanupCallback::new(self))
+        context.rcu_defer(RcuDeferSimple::<_, C>::new(move || {
+            // SAFETY: The caller already executed an RCU syncronization.
+            unsafe {
+                self.take_ownership();
+            }
+        }))
     }
 
     /// Configure a cleanup callback to be called after the grace period.
@@ -77,7 +82,7 @@ pub unsafe trait RcuRef<C> {
         C: RcuContext + 'static,
     {
         context.rcu_call(RcuSimpleCallback::new(Box::new(move || {
-            // SAFETY: An RCU syncronization barrier was called.
+            // SAFETY: The caller already executed an RCU syncronization.
             unsafe {
                 self.take_ownership();
             }

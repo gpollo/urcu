@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
@@ -141,3 +142,69 @@ where
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
 unsafe impl<R: Send, C> Send for RcuCleanupCallback<R, C> {}
+
+/// This trait defines a callback to be invoked after the next RCU grace period.
+///
+/// #### Implementation
+///
+/// Each RCU thread have an array of `(callback, data)` pointers. When the next RCU
+/// grace period finishes, the thread goes over each of its entry and execute
+/// `callback(data)`.
+///
+/// #### Safety
+///
+/// When [`RcuDeferConfig::configure`] is called, you must deliberately leak your type
+/// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
+/// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
+/// free up memory. For an example, see [`RcuDeferSimple`].
+pub unsafe trait RcuDeferConfig {
+    /// Configures the callback for execution.
+    fn configure<F>(self: Box<Self>, func: F)
+    where
+        F: FnOnce(NonNull<c_void>, unsafe extern "C" fn(head: *mut c_void));
+}
+
+/// Defines a simple defer callback executed after the next RCU grace period.
+pub struct RcuDeferSimple<F, C> {
+    func: F,
+    // Also prevents Send+Sync auto-trait implementations.
+    _context: PhantomData<*mut C>,
+}
+
+/// #### Safety
+///
+/// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
+impl<F, C> RcuDeferSimple<F, C> {
+    /// Creates a callback.
+    pub fn new(func: F) -> Box<Self> {
+        Box::new(Self {
+            func,
+            _context: PhantomData,
+        })
+    }
+
+    unsafe extern "C" fn callback(ptr: *mut c_void)
+    where
+        F: FnOnce(),
+    {
+        // SAFETY: The pointers should always be valid.
+        let node = Box::from_raw(ptr as *mut Self);
+
+        (node.func)();
+    }
+}
+
+unsafe impl<F, C> RcuDeferConfig for RcuDeferSimple<F, C>
+where
+    F: FnOnce(),
+{
+    fn configure<P>(self: Box<Self>, func: P)
+    where
+        P: FnOnce(NonNull<c_void>, unsafe extern "C" fn(head: *mut c_void)),
+    {
+        let ptr = Box::into_raw(self) as *mut c_void;
+
+        // SAFETY: The pointer is never null.
+        unsafe { func(NonNull::new_unchecked(ptr), Self::callback) }
+    }
+}
