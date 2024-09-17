@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 use urcu_sys::RcuFlavorApi;
 
-use crate::rcu::callback::{RcuCallback, RcuDeferConfig};
+use crate::rcu::callback::{RcuCallConfig, RcuDeferConfig};
 use crate::rcu::cleanup::RcuCleanupCallback2;
 use crate::rcu::reference::RcuRef;
 
@@ -124,7 +124,7 @@ pub unsafe trait RcuContext {
     /// The callback must be [`Send`] because it will be executed by an helper thread.
     fn rcu_call<F>(&self, callback: Box<F>)
     where
-        F: RcuCallback + Send + 'static;
+        F: RcuCallConfig + Send + 'static;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -394,7 +394,7 @@ macro_rules! define_rcu_context {
 
             fn rcu_call<F>(&self, callback: Box<F>)
             where
-                F: RcuCallback + Send + 'static
+                F: RcuCallConfig + Send + 'static
             {
                 callback.configure(|mut head, func| unsafe {
                     urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));

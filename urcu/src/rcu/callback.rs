@@ -9,18 +9,21 @@ use urcu_sys::RcuHead;
 ///
 /// #### Implementation
 ///
-/// RCU callbacks are put into a queue inside the RCU context. To do so, you need
-/// to provide a pointer to an [`RcuHead`] that is owned by your type. Upon callback,
-/// the same pointer will be provided to the callback. You can use [`container_of!`]
-/// to get back the type implementing this trait.
+/// Each flavor have an RCU linked list of `(callback, head)` pointers. Each RCU
+/// threads can queue callbacks in this list. A helper thread will pop callbacks
+/// and execute them with `callback(head)`.
 ///
 /// #### Safety
 ///
-/// When [`RcuCallback::configure`] is called, you must use [`Box::into_raw`] to
-/// prevent the type to be freed. Upon execution of the callback, you must
-/// use [`Box::from_raw`] to get back ownership and properly free up memory.
-/// For example implementations, see [`RcuSimpleCallback`] and [`RcuCleanupCallback`].
-pub unsafe trait RcuCallback {
+/// When [`RcuCallConfig::configure`] is called, you must deliberately leak your type
+/// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
+/// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
+/// free up memory. For an example, see [`RcuSimpleCallback`].
+///
+/// Unlike [`RcuDeferConfig`], we resulting pointer must be an [`RcuHead`] inside
+/// your data. You can use [`container_of!`] to get back the type implementing this
+/// trait.
+pub unsafe trait RcuCallConfig {
     /// Configures the callback for execution.
     fn configure<F>(self: Box<Self>, func: F)
     where
@@ -56,7 +59,7 @@ impl<F> RcuSimpleCallback<F> {
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<F> RcuCallback for RcuSimpleCallback<F>
+unsafe impl<F> RcuCallConfig for RcuSimpleCallback<F>
 where
     F: FnOnce(),
 {
