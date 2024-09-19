@@ -1,3 +1,4 @@
+mod iterator;
 mod raw;
 mod reference;
 
@@ -12,6 +13,7 @@ use guardian::ArcMutexGuardian;
 use crate::linked_list::raw::RcuListNode;
 use crate::{DefaultContext, RcuContext};
 
+pub use crate::linked_list::iterator::*;
 pub use crate::linked_list::reference::*;
 
 /// RCU linked list.
@@ -119,19 +121,11 @@ where
     C: RcuContext + 'a,
 {
     pub fn iter_forward(&self) -> RcuListIterator<T, &Self> {
-        RcuListIterator {
-            reader: self,
-            forward: true,
-            ptr: self.list.head.load(Ordering::Acquire),
-        }
+        RcuListIterator::new_forward(self, self.list.head.load(Ordering::Acquire))
     }
 
     pub fn iter_reverse(&self) -> RcuListIterator<T, &Self> {
-        RcuListIterator {
-            reader: self,
-            forward: false,
-            ptr: self.list.tail.load(Ordering::Acquire),
-        }
+        RcuListIterator::new_reverse(self, self.list.tail.load(Ordering::Acquire))
     }
 }
 
@@ -276,89 +270,5 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
         }
 
         unsafe { RcuListNode::remove(self.node.as_ptr()) }
-    }
-}
-
-/// An iterator over the nodes of an [`RcuList`].
-pub struct RcuListIterator<T, O> {
-    #[allow(dead_code)]
-    reader: O,
-    forward: bool,
-    ptr: *const RcuListNode<T>,
-}
-
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListReader<'a, T, C>>
-where
-    C: RcuContext + 'a,
-{
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.ptr.is_null() {
-            return None;
-        }
-
-        // SAFETY: The pointer is non-null.
-        unsafe {
-            let item = &*self.ptr;
-
-            self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
-            } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
-            };
-
-            Some(item)
-        }
-    }
-}
-
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.ptr.is_null() {
-            return None;
-        }
-
-        // SAFETY: The pointer is non-null.
-        unsafe {
-            let item = &*self.ptr;
-
-            self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
-            } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
-            };
-
-            Some(item)
-        }
-    }
-}
-
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
-    type Item = RcuListEntry<'a, T, C>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.ptr.is_null() {
-            return None;
-        }
-
-        // SAFETY: The pointer is non-null.
-        unsafe {
-            let item = self.ptr as *mut RcuListNode<T>;
-
-            self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
-            } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
-            };
-
-            Some(RcuListEntry {
-                node: NonNull::new_unchecked(item),
-                list: self.reader.list.clone(),
-                life: PhantomData,
-            })
-        }
     }
 }
