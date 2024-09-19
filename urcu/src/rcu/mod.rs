@@ -1,3 +1,4 @@
+pub(crate) mod api;
 pub(crate) mod callback;
 pub(crate) mod cleanup;
 pub(crate) mod reference;
@@ -7,6 +8,7 @@ use std::marker::PhantomData;
 
 use urcu_sys::RcuFlavorApi;
 
+use crate::rcu::api::RcuUnsafe;
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::cleanup::RcuCleanup;
 use crate::rcu::reference::RcuRef;
@@ -15,36 +17,6 @@ use crate::rcu::reference::RcuRef;
 pub trait RcuPoller {
     /// Checks if the grace period is over for this poller.
     fn grace_period_finished(&self) -> bool;
-}
-
-/// This trait defines an unchecked API to the RCU primitives.
-pub trait RcuUnsafe {
-    /// Starts an RCU critical section.
-    ///
-    /// #### Safety
-    ///
-    /// The caller is responsible for ensuring the thread has been registered.
-    ///
-    /// The caller is reponsible for calling [`RcuUnsafe::unchecked_rcu_read_unlock`]
-    /// at the end of the RCU critical section.
-    unsafe fn unchecked_rcu_read_lock();
-
-    /// Stops an RCU critical section.
-    ///
-    /// #### Safety
-    ///
-    /// The caller is responsible for ensuring the thread has been registered.
-    ///
-    /// The caller is reponsible for calling [`RcuUnsafe::unchecked_rcu_read_lock`]
-    /// at the start of the RCU critical section.
-    unsafe fn unchecked_rcu_read_unlock();
-
-    /// Waits until the RCU grace period is over.
-    ///
-    /// #### Safety
-    ///
-    /// The caller must ensure an RCU critical section is currently not running.
-    unsafe fn unchecked_rcu_synchronize();
 }
 
 /// This trait defines the per-thread RCU context.
@@ -210,28 +182,6 @@ macro_rules! urcu_func {
     ($flavor:ident, $name:ident) => {
         paste::paste! {
             [<urcu _ $flavor _ $name>]
-        }
-    };
-}
-
-macro_rules! define_rcu_unsafe_context {
-    ($flavor:ident, $context:ident) => {
-        #[doc = concat!("Defines an unsafe RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
-        #[allow(dead_code)]
-        pub struct $context;
-
-        impl RcuUnsafe for $context {
-            unsafe fn unchecked_rcu_read_lock() {
-                unsafe { urcu_func!($flavor, read_lock)() }
-            }
-
-            unsafe fn unchecked_rcu_read_unlock() {
-                unsafe { urcu_func!($flavor, read_unlock)() }
-            }
-
-            unsafe fn unchecked_rcu_synchronize() {
-                unsafe { urcu_func!($flavor, synchronize_rcu)() }
-            }
         }
     };
 }
@@ -437,11 +387,11 @@ pub mod flavor {
             RCU_API,
         };
 
+        pub use crate::rcu::api::RcuUnsafeBp;
+
         define_rcu_guard!(bp, RcuGuardBp, RcuContextBp);
 
         define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
-
-        define_rcu_unsafe_context!(bp, RcuUnsafeBp);
 
         define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
     }
@@ -468,11 +418,11 @@ pub mod flavor {
             RCU_API,
         };
 
+        pub use crate::rcu::api::RcuUnsafeMb;
+
         define_rcu_guard!(mb, RcuGuardMb, RcuContextMb);
 
         define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
-
-        define_rcu_unsafe_context!(mb, RcuUnsafeMb);
 
         define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
     }
@@ -499,11 +449,11 @@ pub mod flavor {
             RCU_API,
         };
 
+        pub use crate::rcu::api::RcuUnsafeMemb;
+
         define_rcu_guard!(memb, RcuGuardMemb, RcuContextMemb);
 
         define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
-
-        define_rcu_unsafe_context!(memb, RcuUnsafeMemb);
 
         define_rcu_context!(
             memb,
@@ -536,11 +486,11 @@ pub mod flavor {
             RCU_API,
         };
 
+        pub use crate::rcu::api::RcuUnsafeQsbr;
+
         define_rcu_guard!(qsbr, RcuGuardQsbr, RcuContextQsbr);
 
         define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
-
-        define_rcu_unsafe_context!(qsbr, RcuUnsafeQsbr);
 
         define_rcu_context!(
             qsbr,
