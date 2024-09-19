@@ -1,5 +1,20 @@
 use std::path::PathBuf;
 
+use bindgen::callbacks::{FieldInfo, ParseCallbacks};
+use bindgen::FieldVisibilityKind;
+
+#[derive(Debug)]
+struct CustomCallbacks;
+
+impl ParseCallbacks for CustomCallbacks {
+    fn field_visibility(&self, info: FieldInfo<'_>) -> Option<FieldVisibilityKind> {
+        match info.type_name {
+            "urcu_gp_poll_state" | "rcu_head" => Some(FieldVisibilityKind::Private),
+            _ => None,
+        }
+    }
+}
+
 fn main() {
     metadeps::probe().unwrap();
 
@@ -14,9 +29,10 @@ fn main() {
         .allowlist_item("rcu_.*")
         .allowlist_item("urcu_gp_poll_state")
         .allowlist_var("CDS_.*")
+        .parse_callbacks(Box::new(CustomCallbacks))
+        .derive_default(true)
         .wrap_static_fns(true)
         .wrap_static_fns_path(output.join("static_fns.c"))
-        .derive_default(true)
         .generate()
         .unwrap()
         .write_to_file(output.join("bindings.rs"))
