@@ -1,7 +1,7 @@
 mod raw;
+mod reference;
 
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex};
@@ -10,104 +10,9 @@ use anyhow::{anyhow, Result};
 use guardian::ArcMutexGuardian;
 
 use crate::linked_list::raw::RcuListNode;
-use crate::{DefaultContext, RcuContext, RcuRef};
+use crate::{DefaultContext, RcuContext};
 
-/// An owned RCU reference to a element removed from an [`RcuList`].
-pub struct RcuListRefOwned<T>(Box<RcuListNode<T>>);
-
-impl<T> Deref for RcuListRefOwned<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl<T> DerefMut for RcuListRefOwned<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.deref_mut()
-    }
-}
-
-/// An RCU reference to a element removed from an [`RcuList`].
-///
-/// #### Note
-///
-/// To get ownership of the reference, you can use [`rcu_take_ownership`]. If ownership is
-/// never taken, cleanup will be automatically executed after the next RCU grace period.
-///
-/// #### Requirements
-///
-/// `T` must be [`Send`] because [`Drop::drop`] might defer cleanup in another thread.
-///
-/// [`rcu_take_ownership`]: crate::rcu_take_ownership
-#[must_use]
-pub struct RcuListRef<T, C>
-where
-    T: Send + 'static,
-    C: RcuContext + 'static,
-{
-    ptr: *mut RcuListNode<T>,
-    context: PhantomData<C>,
-}
-
-/// #### Safety
-///
-/// An RCU reference can be sent to another thread if `T` implements [`Send`].
-unsafe impl<T, C> Send for RcuListRef<T, C>
-where
-    T: Send,
-    C: RcuContext,
-{
-}
-
-impl<T, C> Drop for RcuListRef<T, C>
-where
-    T: Send + 'static,
-    C: RcuContext + 'static,
-{
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            Self {
-                ptr: self.ptr,
-                context: Default::default(),
-            }
-            .safe_cleanup();
-        }
-    }
-}
-
-/// #### Safety
-///
-/// The memory reclamation upon dropping is properly deferred after the RCU grace period.
-unsafe impl<T, C> RcuRef<C> for RcuListRef<T, C>
-where
-    T: Send,
-    C: RcuContext,
-{
-    type Output = RcuListRefOwned<T>;
-
-    unsafe fn take_ownership(mut self) -> Self::Output {
-        let output = RcuListRefOwned(Box::from_raw(self.ptr));
-
-        // SAFETY: We don't want deferred cleanup when dropping `self`.
-        self.ptr = std::ptr::null_mut();
-
-        output
-    }
-}
-
-impl<T, C> Deref for RcuListRef<T, C>
-where
-    T: Send,
-    C: RcuContext,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { (*self.ptr).deref() }
-    }
-}
+pub use crate::linked_list::reference::*;
 
 /// RCU linked list.
 ///

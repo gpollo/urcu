@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use crate::linked_list::RcuListRef;
+use crate::linked_list::reference::RcuListRef;
 use crate::RcuContext;
 
 pub struct RcuListNode<T> {
@@ -103,10 +103,7 @@ impl<T> RcuListNode<T> {
             prev.next.store(next, Ordering::Release);
         }
 
-        RcuListRef {
-            ptr,
-            context: Default::default(),
-        }
+        RcuListRef::new(ptr)
     }
 }
 
