@@ -6,8 +6,6 @@ pub(crate) mod reference;
 use std::cell::Cell;
 use std::marker::PhantomData;
 
-use urcu_sys::RcuFlavorApi;
-
 use crate::rcu::api::RcuUnsafe;
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::cleanup::RcuCleanup;
@@ -107,9 +105,6 @@ pub unsafe trait RcuContext {
     ///
     /// The callback must be [`Send`] because it will be executed by an helper thread.
     fn rcu_cleanup(callback: RcuCleanup<Self>);
-
-    /// Returns the API list for this RCU flavor.
-    fn rcu_api() -> &'static RcuFlavorApi;
 }
 
 macro_rules! define_rcu_take_ownership {
@@ -142,9 +137,7 @@ macro_rules! define_rcu_take_ownership {
                 context.rcu_synchronize();
 
                 // SAFETY: RCU grace period has ended.
-                unsafe {
-                    ($([<T $x>]::take_ownership([<r $x>])),*,)
-                }
+                unsafe { ($([<T $x>]::take_ownership([<r $x>])),*,) }
             }
         }
     };
@@ -178,24 +171,18 @@ macro_rules! rcu_take_ownership {
     };
 }
 
-macro_rules! urcu_func {
-    ($flavor:ident, $name:ident) => {
-        paste::paste! {
-            [<urcu _ $flavor _ $name>]
-        }
-    };
-}
-
 macro_rules! define_rcu_guard {
-    ($flavor:ident, $guard:ident, $context:ident) => {
+    ($flavor:ident, $guard:ident, $unsafe:ident, $context:ident) => {
         #[doc = concat!("Defines a guard for an RCU critical section (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
         pub struct $guard<'a>(PhantomData<&'a $context>);
 
         impl<'a> $guard<'a> {
             fn new(_context: &'a $context) -> Self {
-                // SAFETY: The RCU region is unlocked upon dropping.
-                unsafe { urcu_func!($flavor, read_lock)() }
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The critical section is unlocked at guard's drop.
+                unsafe { $unsafe::unchecked_rcu_read_lock() };
 
                 Self(PhantomData)
             }
@@ -203,31 +190,37 @@ macro_rules! define_rcu_guard {
 
         impl<'a> Drop for $guard<'a> {
             fn drop(&mut self) {
-                // SAFETY: The guard cannot be created without first locking.
-                unsafe { urcu_func!($flavor, read_unlock)() }
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The critical section is locked at guard's creation.
+                unsafe { $unsafe::unchecked_rcu_read_unlock() };
             }
         }
     };
 }
 
 macro_rules! define_rcu_poller {
-    ($flavor:ident, $poller:ident, $context:ident) => {
+    ($flavor:ident, $poller:ident, $unsafe:ident, $context:ident) => {
         #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
         pub struct $poller<'a>(PhantomData<&'a $context>, urcu_sys::RcuPollState);
 
         impl<'a> $poller<'a> {
             fn new(_context: &'a $context) -> Self {
-                // SAFETY: Context will be initialized and we may create multiple poller.
-                Self(PhantomData, unsafe {
-                    urcu_func!($flavor, start_poll_synchronize_rcu)()
+                Self(PhantomData, {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    unsafe { $unsafe::unchecked_rcu_poll_start() }
                 })
             }
         }
 
         impl<'a> RcuPoller for $poller<'a> {
             fn grace_period_finished(&self) -> bool {
-                unsafe { urcu_func!($flavor, poll_state_synchronize_rcu)(self.1) }
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The handle is created at poller's creation.
+                unsafe { $unsafe::unchecked_rcu_poll_check(self.1) }
             }
         }
     };
@@ -244,7 +237,7 @@ macro_rules! define_rcu_context {
         /// It will be unregistered upon dropping.
         pub struct $context(
             // Prevent Send+Send auto trait implementations.
-            PhantomData<*const ()>
+            PhantomData<*const ()>,
         );
 
         impl $context {
@@ -260,19 +253,26 @@ macro_rules! define_rcu_context {
                         return None;
                     }
 
-                    // SAFETY: The registration is only called once per thread.
-                    unsafe {
-                        log::info!(
-                            "registering thread '{}' ({}) with RCU (liburcu-{})",
-                            std::thread::current().name().unwrap_or("<unnamed>"),
-                            libc::gettid(),
-                            stringify!($flavor),
-                        );
+                    log::info!(
+                        "registering thread '{}' ({}) with RCU (liburcu-{})",
+                        std::thread::current().name().unwrap_or("<unnamed>"),
+                        unsafe { libc::gettid() },
+                        stringify!($flavor),
+                    );
 
-                        urcu_func!($flavor, init)();
-                        urcu_func!($flavor, register_thread)();
-                        urcu_func!($flavor, defer_register_thread)();
-                    }
+                    // SAFETY: Can only be called once per thread.
+                    // SAFETY: It is the first RCU call for a thread.
+                    unsafe { $unsafe::unchecked_rcu_init() };
+
+                    // SAFETY: The thread is initialized.
+                    // SAFETY: The thread is not read-registered.
+                    // SAFETY: The thread is read-unregistered at context's drop.
+                    unsafe { $unsafe::unchecked_rcu_read_register_thread() };
+
+                    // SAFETY: The thread is initialized.
+                    // SAFETY: The thread is not defer-registered.
+                    // SAFETY: The thread is read-unregistered at context's drop.
+                    unsafe { $unsafe::unchecked_rcu_defer_register_thread() };
 
                     Some(Self(PhantomData))
                 })
@@ -281,23 +281,31 @@ macro_rules! define_rcu_context {
 
         impl Drop for $context {
             fn drop(&mut self) {
-                // Removes the cleanup thread if possible.
+                log::info!(
+                    "unregistering thread '{}' ({}) with RCU (liburcu-{})",
+                    std::thread::current().name().unwrap_or("<unnamed>"),
+                    unsafe { libc::gettid() },
+                    stringify!($flavor),
+                );
+
                 Self::cleanup_remove();
 
-                // SAFETY: The unregistration may only be called once per thread.
-                unsafe {
-                    log::info!(
-                        "unregistering thread '{}' ({}) with RCU (liburcu-{})",
-                        std::thread::current().name().unwrap_or("<unnamed>"),
-                        libc::gettid(),
-                        stringify!($flavor),
-                    );
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is defer-registered at context's creation.
+                // SAFETY: The thread can't be in a RCU critical section if it's dropping.
+                unsafe { $unsafe::unchecked_rcu_defer_barrier() };
 
-                    urcu_func!($flavor, defer_barrier)();
-                    urcu_func!($flavor, defer_unregister_thread)();
-                    urcu_func!($flavor, barrier)();
-                    urcu_func!($flavor, unregister_thread)();
-                }
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is defer-registered at context's creation.
+                unsafe { $unsafe::unchecked_rcu_defer_unregister_thread() };
+
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                unsafe { $unsafe::unchecked_rcu_call_barrier() };
+
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                unsafe { $unsafe::unchecked_rcu_read_unregister_thread() };
             }
         }
 
@@ -315,7 +323,7 @@ macro_rules! define_rcu_context {
 
             fn rcu_register() -> Option<Self>
             where
-                Self: Sized
+                Self: Sized,
             {
                 Self::new()
             }
@@ -325,8 +333,9 @@ macro_rules! define_rcu_context {
             }
 
             fn rcu_synchronize(&mut self) {
-                // SAFETY: The method's mutability prevents a read lock while syncronizing.
-                unsafe { urcu_func!($flavor, synchronize_rcu)() }
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+                unsafe { $unsafe::unchecked_rcu_synchronize() };
             }
 
             fn rcu_synchronize_poller(&self) -> Self::Poller<'_> {
@@ -335,28 +344,33 @@ macro_rules! define_rcu_context {
 
             fn rcu_defer<F>(&mut self, callback: Box<F>)
             where
-                F: RcuDefer
+                F: RcuDefer,
             {
-                callback.configure(|mut ptr, func| unsafe {
-                    urcu_func!($flavor, defer_rcu)(Some(func), ptr.as_mut());
+                callback.configure(|mut ptr, func| {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is defer-registered at context's creation.
+                    // SAFETY: The thread executes a defer-barrier at context's drop.
+                    // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+                    // SAFETY: The pointers validity is guaranteed by `RcuDefer`.
+                    unsafe { $unsafe::unchecked_rcu_defer_call(Some(func), ptr.as_mut()) };
                 });
             }
 
             fn rcu_call<F>(&self, callback: Box<F>)
             where
-                F: RcuCall + Send + 'static
+                F: RcuCall + Send + 'static,
             {
-                callback.configure(|mut head, func| unsafe {
-                    urcu_func!($flavor, call_rcu)(head.as_mut(), Some(func));
+                callback.configure(|mut head, func| {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    // SAFETY: The thread executes a call-barrier at context's drop.
+                    // SAFETY: The pointers validity is guaranteed by `RcuCall`.
+                    unsafe { $unsafe::unchecked_rcu_call(Some(func), head.as_mut()) };
                 });
             }
 
             fn rcu_cleanup(callback: RcuCleanup<Self>) {
                 Self::cleanup_send(callback);
-            }
-
-            fn rcu_api() -> &'static RcuFlavorApi {
-                &RCU_API
             }
         }
     };
@@ -369,30 +383,10 @@ pub mod flavor {
     pub(crate) mod bp {
         use super::*;
 
-        use urcu_bp_sys::{
-            urcu_bp_barrier,
-            urcu_bp_call_rcu,
-            urcu_bp_defer_barrier,
-            urcu_bp_defer_rcu,
-            urcu_bp_defer_register_thread,
-            urcu_bp_defer_unregister_thread,
-            urcu_bp_init,
-            urcu_bp_poll_state_synchronize_rcu,
-            urcu_bp_read_lock,
-            urcu_bp_read_unlock,
-            urcu_bp_register_thread,
-            urcu_bp_start_poll_synchronize_rcu,
-            urcu_bp_synchronize_rcu,
-            urcu_bp_unregister_thread,
-            RCU_API,
-        };
-
         pub use crate::rcu::api::RcuUnsafeBp;
 
-        define_rcu_guard!(bp, RcuGuardBp, RcuContextBp);
-
-        define_rcu_poller!(bp, RcuPollerBp, RcuContextBp);
-
+        define_rcu_guard!(bp, RcuGuardBp, RcuUnsafeBp, RcuContextBp);
+        define_rcu_poller!(bp, RcuPollerBp, RcuUnsafeBp, RcuContextBp);
         define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
     }
 
@@ -400,30 +394,10 @@ pub mod flavor {
     pub(crate) mod mb {
         use super::*;
 
-        use urcu_mb_sys::{
-            urcu_mb_barrier,
-            urcu_mb_call_rcu,
-            urcu_mb_defer_barrier,
-            urcu_mb_defer_rcu,
-            urcu_mb_defer_register_thread,
-            urcu_mb_defer_unregister_thread,
-            urcu_mb_init,
-            urcu_mb_poll_state_synchronize_rcu,
-            urcu_mb_read_lock,
-            urcu_mb_read_unlock,
-            urcu_mb_register_thread,
-            urcu_mb_start_poll_synchronize_rcu,
-            urcu_mb_synchronize_rcu,
-            urcu_mb_unregister_thread,
-            RCU_API,
-        };
-
         pub use crate::rcu::api::RcuUnsafeMb;
 
-        define_rcu_guard!(mb, RcuGuardMb, RcuContextMb);
-
-        define_rcu_poller!(mb, RcuPollerMb, RcuContextMb);
-
+        define_rcu_guard!(mb, RcuGuardMb, RcuUnsafeMb, RcuContextMb);
+        define_rcu_poller!(mb, RcuPollerMb, RcuUnsafeMb, RcuContextMb);
         define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
     }
 
@@ -431,30 +405,10 @@ pub mod flavor {
     pub(crate) mod memb {
         use super::*;
 
-        use urcu_memb_sys::{
-            urcu_memb_barrier,
-            urcu_memb_call_rcu,
-            urcu_memb_defer_barrier,
-            urcu_memb_defer_rcu,
-            urcu_memb_defer_register_thread,
-            urcu_memb_defer_unregister_thread,
-            urcu_memb_init,
-            urcu_memb_poll_state_synchronize_rcu,
-            urcu_memb_read_lock,
-            urcu_memb_read_unlock,
-            urcu_memb_register_thread,
-            urcu_memb_start_poll_synchronize_rcu,
-            urcu_memb_synchronize_rcu,
-            urcu_memb_unregister_thread,
-            RCU_API,
-        };
-
         pub use crate::rcu::api::RcuUnsafeMemb;
 
-        define_rcu_guard!(memb, RcuGuardMemb, RcuContextMemb);
-
-        define_rcu_poller!(memb, RcuPollerMemb, RcuContextMemb);
-
+        define_rcu_guard!(memb, RcuGuardMemb, RcuUnsafeMemb, RcuContextMemb);
+        define_rcu_poller!(memb, RcuPollerMemb, RcuUnsafeMemb, RcuContextMemb);
         define_rcu_context!(
             memb,
             RcuContextMemb,
@@ -468,30 +422,10 @@ pub mod flavor {
     pub(crate) mod qsbr {
         use super::*;
 
-        use urcu_qsbr_sys::{
-            urcu_qsbr_barrier,
-            urcu_qsbr_call_rcu,
-            urcu_qsbr_defer_barrier,
-            urcu_qsbr_defer_rcu,
-            urcu_qsbr_defer_register_thread,
-            urcu_qsbr_defer_unregister_thread,
-            urcu_qsbr_init,
-            urcu_qsbr_poll_state_synchronize_rcu,
-            urcu_qsbr_read_lock,
-            urcu_qsbr_read_unlock,
-            urcu_qsbr_register_thread,
-            urcu_qsbr_start_poll_synchronize_rcu,
-            urcu_qsbr_synchronize_rcu,
-            urcu_qsbr_unregister_thread,
-            RCU_API,
-        };
-
         pub use crate::rcu::api::RcuUnsafeQsbr;
 
-        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuContextQsbr);
-
-        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuContextQsbr);
-
+        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuUnsafeQsbr, RcuContextQsbr);
+        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuUnsafeQsbr, RcuContextQsbr);
         define_rcu_context!(
             qsbr,
             RcuContextQsbr,
