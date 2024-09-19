@@ -1,3 +1,5 @@
+mod raw;
+
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
@@ -7,95 +9,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Result};
 use guardian::ArcMutexGuardian;
 
+use crate::linked_list::raw::RcuListNode;
 use crate::{DefaultContext, RcuContext, RcuRef};
-
-struct RcuListNode<T> {
-    prev: AtomicPtr<Self>,
-    next: AtomicPtr<Self>,
-    data: T,
-}
-
-impl<T> RcuListNode<T> {
-    fn new(data: T) -> *mut Self {
-        Box::into_raw(Box::new(Self {
-            prev: AtomicPtr::new(std::ptr::null_mut()),
-            next: AtomicPtr::new(std::ptr::null_mut()),
-            data,
-        }))
-    }
-
-    /// Insert a node after this one.
-    ///
-    /// #### Safety
-    ///
-    /// Require mutual exclusion on the list.
-    unsafe fn insert_after(&mut self, new_prev_ptr: *mut Self) {
-        let old_next_ptr = self.next.load(Ordering::Relaxed);
-        let old_next = unsafe { &mut *old_next_ptr };
-        let new_next = unsafe { &mut *new_prev_ptr };
-
-        new_next.next.store(old_next, Ordering::Relaxed);
-        new_next.prev.store(self, Ordering::Relaxed);
-
-        if !old_next_ptr.is_null() {
-            old_next.prev.store(new_next, Ordering::Release);
-        }
-
-        self.next.store(new_next, Ordering::Release);
-    }
-
-    /// Insert a node before this one.
-    ///
-    /// #### Safety
-    ///
-    /// Require mutual exclusion on the list.
-    unsafe fn insert_before(&mut self, new_prev_ptr: *mut Self) {
-        let old_prev_ptr = self.prev.load(Ordering::Relaxed);
-        let old_prev = unsafe { &mut *old_prev_ptr };
-        let new_prev = unsafe { &mut *new_prev_ptr };
-
-        new_prev.next.store(self, Ordering::Relaxed);
-        new_prev.prev.store(old_prev, Ordering::Relaxed);
-
-        if !old_prev_ptr.is_null() {
-            old_prev.next.store(new_prev, Ordering::Release);
-        }
-
-        self.prev.store(new_prev, Ordering::Release);
-    }
-
-    /// Delete this node from the list.
-    ///
-    /// #### Safety
-    ///
-    /// Require mutual exclusion on the list.
-    unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C>
-    where
-        T: Send,
-        C: RcuContext,
-    {
-        let node = unsafe { &*ptr };
-
-        let prev_ptr = node.prev.load(Ordering::Relaxed);
-        let prev = unsafe { &mut *prev_ptr };
-
-        let next_ptr = node.next.load(Ordering::Relaxed);
-        let next = unsafe { &mut *next_ptr };
-
-        if !next_ptr.is_null() {
-            next.prev.store(prev, Ordering::Release);
-        }
-
-        if !prev_ptr.is_null() {
-            prev.next.store(next, Ordering::Release);
-        }
-
-        RcuListRef {
-            ptr,
-            context: Default::default(),
-        }
-    }
-}
 
 /// An owned RCU reference to a element removed from an [`RcuList`].
 pub struct RcuListRefOwned<T>(Box<RcuListNode<T>>);
@@ -104,13 +19,13 @@ impl<T> Deref for RcuListRefOwned<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.0.deref().data
+        self.0.deref()
     }
 }
 
 impl<T> DerefMut for RcuListRefOwned<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0.deref_mut().data
+        self.0.deref_mut()
     }
 }
 
@@ -190,7 +105,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &(*self.ptr).data }
+        unsafe { (*self.ptr).deref() }
     }
 }
 
@@ -218,6 +133,12 @@ where
 /// Because a writer might concurrently modify the list, it is possible that `node.next.prev != node`.
 /// To prevent user error, this linked list does not support bidirectional iteration.
 /// For example, if you create an forward iterator, it can only go forward.
+///
+/// # Safety
+///
+/// It is safe to send an `Arc<RcuList<T>>` to a non-registered RCU thread. A non-registered
+/// thread may drop an `RcuList< T>` without calling any RCU primitives since lifetime rules
+/// prevent any other thread from accessing an RCU reference.
 pub struct RcuList<T, C = DefaultContext> {
     head: AtomicPtr<RcuListNode<T>>,
     tail: AtomicPtr<RcuListNode<T>>,
@@ -260,7 +181,8 @@ impl<T, C> Drop for RcuList<T, C> {
         // SAFETY: Because of reference counting, there are no reader/writer threads accessing this object.
         let mut node_ptr = self.head.load(Ordering::Relaxed);
         while !node_ptr.is_null() {
-            let next_ptr = unsafe { &*node_ptr }.next.load(Ordering::Relaxed);
+            // SAFETY: The pointer is non-null.
+            let next_ptr = unsafe { RcuListNode::next_node(node_ptr, Ordering::Relaxed) };
             drop(unsafe { Box::from_raw(node_ptr) });
             node_ptr = next_ptr;
         }
@@ -397,8 +319,10 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     /// Inserts a node after this entry.
     pub fn insert_after(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
-        let node_next = node.next.load(Ordering::Acquire);
         let node_new = RcuListNode::new(data);
+
+        // SAFETY: The pointer is non-null.
+        let node_next = unsafe { RcuListNode::next_node(self.node.as_mut(), Ordering::Acquire) };
 
         unsafe {
             node.insert_after(node_new);
@@ -412,8 +336,10 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     /// Inserts a node before this entry.
     pub fn insert_before(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
-        let node_prev = node.prev.load(Ordering::Acquire);
         let node_new = RcuListNode::new(data);
+
+        // SAFETY: The pointer is non-null.
+        let node_prev = unsafe { RcuListNode::prev_node(self.node.as_mut(), Ordering::Acquire) };
 
         unsafe {
             node.insert_after(node_new);
@@ -425,14 +351,16 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     }
 
     /// Removes the node from the list.
-    pub fn remove(self) -> RcuListRef<T, C>
+    pub fn remove(mut self) -> RcuListRef<T, C>
     where
         T: Send,
         C: RcuContext,
     {
-        let node = unsafe { self.node.as_ref() };
-        let node_prev = node.prev.load(Ordering::Acquire);
-        let node_next = node.next.load(Ordering::Acquire);
+        // SAFETY: The pointer is non-null.
+        let node_prev = unsafe { RcuListNode::prev_node(self.node.as_mut(), Ordering::Acquire) };
+
+        // SAFETY: The pointer is non-null.
+        let node_next = unsafe { RcuListNode::next_node(self.node.as_mut(), Ordering::Acquire) };
 
         if node_prev.is_null() {
             self.list.head.store(node_next, Ordering::Release);
@@ -461,18 +389,21 @@ where
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.ptr.is_null() {
-            let item = unsafe { &*self.ptr };
+        if self.ptr.is_null() {
+            return None;
+        }
 
-            if self.forward {
-                self.ptr = item.next.load(Ordering::Acquire);
+        // SAFETY: The pointer is non-null.
+        unsafe {
+            let item = &*self.ptr;
+
+            self.ptr = if self.forward {
+                RcuListNode::next_node(self.ptr, Ordering::Acquire)
             } else {
-                self.ptr = item.prev.load(Ordering::Acquire);
-            }
+                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+            };
 
-            Some(&item.data)
-        } else {
-            None
+            Some(item)
         }
     }
 }
@@ -481,18 +412,21 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.ptr.is_null() {
-            let item = unsafe { &*self.ptr };
+        if self.ptr.is_null() {
+            return None;
+        }
 
-            if self.forward {
-                self.ptr = item.next.load(Ordering::Acquire);
+        // SAFETY: The pointer is non-null.
+        unsafe {
+            let item = &*self.ptr;
+
+            self.ptr = if self.forward {
+                RcuListNode::next_node(self.ptr, Ordering::Acquire)
             } else {
-                self.ptr = item.prev.load(Ordering::Acquire);
-            }
+                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+            };
 
-            Some(&item.data)
-        } else {
-            None
+            Some(item)
         }
     }
 }
@@ -501,22 +435,25 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
     type Item = RcuListEntry<'a, T, C>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.ptr.is_null() {
-            let item = unsafe { &*self.ptr };
+        if self.ptr.is_null() {
+            return None;
+        }
 
-            if self.forward {
-                self.ptr = item.next.load(Ordering::Acquire);
+        // SAFETY: The pointer is non-null.
+        unsafe {
+            let item = self.ptr as *mut RcuListNode<T>;
+
+            self.ptr = if self.forward {
+                RcuListNode::next_node(self.ptr, Ordering::Acquire)
             } else {
-                self.ptr = item.prev.load(Ordering::Acquire);
-            }
+                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+            };
 
             Some(RcuListEntry {
-                node: unsafe { NonNull::new_unchecked(self.ptr as *mut RcuListNode<T>) },
+                node: NonNull::new_unchecked(item),
                 list: self.reader.list.clone(),
                 life: PhantomData,
             })
-        } else {
-            None
         }
     }
 }
