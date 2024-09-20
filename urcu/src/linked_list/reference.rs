@@ -32,7 +32,7 @@ impl<T> DerefMut for RefOwned<T> {
 ///
 /// #### Requirements
 ///
-/// `T` must be [`Send`] because [`Drop::drop`] might defer cleanup in another thread.
+/// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
 /// [`rcu_take_ownership`]: crate::rcu_take_ownership
 /// [`RcuList`]: crate::linked_list::container::RcuList
@@ -98,7 +98,7 @@ where
     unsafe fn take_ownership(mut self) -> Self::Output {
         let output = RefOwned(Box::from_raw(self.ptr));
 
-        // SAFETY: We don't want deferred cleanup when dropping `self`.
+        // SAFETY: We don't want cleanup when dropping `self`.
         self.ptr = std::ptr::null_mut();
 
         output

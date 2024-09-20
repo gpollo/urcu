@@ -40,7 +40,7 @@ pub use crate::linked_list::reference::*;
 /// # Safety
 ///
 /// It is safe to send an `Arc<RcuList<T>>` to a non-registered RCU thread. A non-registered
-/// thread may drop an `RcuList< T>` without calling any RCU primitives since lifetime rules
+/// thread may drop an `RcuList<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing an RCU reference.
 pub struct RcuList<T, C = DefaultContext> {
     head: AtomicPtr<Node<T>>,
