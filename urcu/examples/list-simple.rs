@@ -1,5 +1,5 @@
 use urcu::flavor::RcuContextMemb;
-use urcu::linked_list::RcuList;
+use urcu::RcuList;
 use urcu::{rcu_take_ownership, RcuContext, RcuRef};
 
 fn main() {

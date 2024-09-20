@@ -6,7 +6,7 @@ use crate::{RcuContext, RcuRef};
 
 /// An owned RCU reference to a element removed from an [`RcuList`].
 ///
-/// [`RcuList`]: crate::linked_list::RcuList
+/// [`RcuList`]: crate::linked_list::container::RcuList
 pub struct RefOwned<T>(Box<Node<T>>);
 
 impl<T> Deref for RefOwned<T> {
@@ -35,7 +35,7 @@ impl<T> DerefMut for RefOwned<T> {
 /// `T` must be [`Send`] because [`Drop::drop`] might defer cleanup in another thread.
 ///
 /// [`rcu_take_ownership`]: crate::rcu_take_ownership
-/// [`RcuList`]: crate::linked_list::RcuList
+/// [`RcuList`]: crate::linked_list::container::RcuList
 #[must_use]
 pub struct Ref<T, C>
 where

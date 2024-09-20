@@ -1,14 +1,13 @@
-use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 
+use crate::linked_list::container::{Entry, Reader, Writer};
 use crate::linked_list::raw::Node;
-use crate::linked_list::{Entry, Reader, Writer};
 use crate::RcuContext;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///
-/// [`RcuList`]: crate::linked_list::RcuList
+/// [`RcuList`]: crate::linked_list::container::RcuList
 pub struct Iter<T, O> {
     #[allow(dead_code)]
     reader: O,
@@ -101,11 +100,10 @@ impl<'a, T, C> Iterator for Iter<T, &'a mut Writer<T, C>> {
                 Node::prev_node(self.ptr, Ordering::Acquire)
             };
 
-            Some(Entry {
-                node: NonNull::new_unchecked(item),
-                list: self.reader.list.clone(),
-                life: PhantomData,
-            })
+            Some(Entry::new(
+                self.reader.list.clone(),
+                NonNull::new_unchecked(item),
+            ))
         }
     }
 }
