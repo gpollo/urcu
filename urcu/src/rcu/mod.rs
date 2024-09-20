@@ -534,3 +534,67 @@ pub type DefaultContext = flavor::bp::RcuContextBp;
     feature = "flavor-qsbr"
 ))]
 pub type DefaultContext = flavor::qsbr::RcuContextQsbr;
+
+mod asserts {
+    use static_assertions::assert_not_impl_all;
+
+    mod bp {
+        use super::*;
+
+        use crate::rcu::flavor::bp::*;
+
+        assert_not_impl_all!(RcuPollerBp: Send);
+        assert_not_impl_all!(RcuPollerBp: Sync);
+
+        assert_not_impl_all!(RcuGuardBp: Send);
+        assert_not_impl_all!(RcuGuardBp: Sync);
+
+        assert_not_impl_all!(RcuContextBp: Send);
+        assert_not_impl_all!(RcuContextBp: Sync);
+    }
+
+    mod mb {
+        use super::*;
+
+        use crate::rcu::flavor::mb::*;
+
+        assert_not_impl_all!(RcuPollerMb: Send);
+        assert_not_impl_all!(RcuPollerMb: Sync);
+
+        assert_not_impl_all!(RcuGuardMb: Send);
+        assert_not_impl_all!(RcuGuardMb: Sync);
+
+        assert_not_impl_all!(RcuContextMb: Send);
+        assert_not_impl_all!(RcuContextMb: Sync);
+    }
+
+    mod memb {
+        use super::*;
+
+        use crate::rcu::flavor::memb::*;
+
+        assert_not_impl_all!(RcuPollerMemb: Send);
+        assert_not_impl_all!(RcuPollerMemb: Sync);
+
+        assert_not_impl_all!(RcuGuardMemb: Send);
+        assert_not_impl_all!(RcuGuardMemb: Sync);
+
+        assert_not_impl_all!(RcuContextMemb: Send);
+        assert_not_impl_all!(RcuContextMemb: Sync);
+    }
+
+    mod qsbr {
+        use super::*;
+
+        use crate::rcu::flavor::qsbr::*;
+
+        assert_not_impl_all!(RcuPollerQsbr: Send);
+        assert_not_impl_all!(RcuPollerQsbr: Sync);
+
+        assert_not_impl_all!(RcuGuardQsbr: Send);
+        assert_not_impl_all!(RcuGuardQsbr: Sync);
+
+        assert_not_impl_all!(RcuContextQsbr: Send);
+        assert_not_impl_all!(RcuContextQsbr: Sync);
+    }
+}
