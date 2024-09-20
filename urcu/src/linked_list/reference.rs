@@ -1,15 +1,15 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::linked_list::raw::RcuListNode;
+use crate::linked_list::raw::Node;
 use crate::{RcuContext, RcuRef};
 
 /// An owned RCU reference to a element removed from an [`RcuList`].
 ///
 /// [`RcuList`]: crate::linked_list::RcuList
-pub struct RcuListRefOwned<T>(Box<RcuListNode<T>>);
+pub struct RefOwned<T>(Box<Node<T>>);
 
-impl<T> Deref for RcuListRefOwned<T> {
+impl<T> Deref for RefOwned<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -17,7 +17,7 @@ impl<T> Deref for RcuListRefOwned<T> {
     }
 }
 
-impl<T> DerefMut for RcuListRefOwned<T> {
+impl<T> DerefMut for RefOwned<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.deref_mut()
     }
@@ -37,21 +37,21 @@ impl<T> DerefMut for RcuListRefOwned<T> {
 /// [`rcu_take_ownership`]: crate::rcu_take_ownership
 /// [`RcuList`]: crate::linked_list::RcuList
 #[must_use]
-pub struct RcuListRef<T, C>
+pub struct Ref<T, C>
 where
     T: Send + 'static,
     C: RcuContext + 'static,
 {
-    ptr: *mut RcuListNode<T>,
+    ptr: *mut Node<T>,
     context: PhantomData<C>,
 }
 
-impl<T, C> RcuListRef<T, C>
+impl<T, C> Ref<T, C>
 where
     T: Send,
     C: RcuContext,
 {
-    pub(crate) fn new(ptr: *mut RcuListNode<T>) -> Self {
+    pub(crate) fn new(ptr: *mut Node<T>) -> Self {
         Self {
             ptr,
             context: PhantomData,
@@ -62,14 +62,14 @@ where
 /// #### Safety
 ///
 /// An RCU reference can be sent to another thread if `T` implements [`Send`].
-unsafe impl<T, C> Send for RcuListRef<T, C>
+unsafe impl<T, C> Send for Ref<T, C>
 where
     T: Send,
     C: RcuContext,
 {
 }
 
-impl<T, C> Drop for RcuListRef<T, C>
+impl<T, C> Drop for Ref<T, C>
 where
     T: Send + 'static,
     C: RcuContext + 'static,
@@ -88,15 +88,15 @@ where
 /// #### Safety
 ///
 /// The memory reclamation upon dropping is properly deferred after the RCU grace period.
-unsafe impl<T, C> RcuRef<C> for RcuListRef<T, C>
+unsafe impl<T, C> RcuRef<C> for Ref<T, C>
 where
     T: Send,
     C: RcuContext,
 {
-    type Output = RcuListRefOwned<T>;
+    type Output = RefOwned<T>;
 
     unsafe fn take_ownership(mut self) -> Self::Output {
-        let output = RcuListRefOwned(Box::from_raw(self.ptr));
+        let output = RefOwned(Box::from_raw(self.ptr));
 
         // SAFETY: We don't want deferred cleanup when dropping `self`.
         self.ptr = std::ptr::null_mut();
@@ -105,7 +105,7 @@ where
     }
 }
 
-impl<T, C> Deref for RcuListRef<T, C>
+impl<T, C> Deref for Ref<T, C>
 where
     T: Send,
     C: RcuContext,

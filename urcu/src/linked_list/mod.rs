@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Result};
 use guardian::ArcMutexGuardian;
 
-use crate::linked_list::raw::RcuListNode;
+use crate::linked_list::raw::Node;
 use crate::{DefaultContext, RcuContext};
 
 pub use crate::linked_list::iterator::*;
@@ -47,8 +47,8 @@ pub use crate::linked_list::reference::*;
 /// thread may drop an `RcuList< T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing an RCU reference.
 pub struct RcuList<T, C = DefaultContext> {
-    head: AtomicPtr<RcuListNode<T>>,
-    tail: AtomicPtr<RcuListNode<T>>,
+    head: AtomicPtr<Node<T>>,
+    tail: AtomicPtr<Node<T>>,
     mutex: Arc<Mutex<()>>,
     // Also prevents auto-trait implementation of [`Send`] and [`Sync`].
     context: PhantomData<*const C>,
@@ -64,18 +64,18 @@ impl<T, C> RcuList<T, C> {
         })
     }
 
-    pub fn reader<'a>(self: &'a Arc<Self>, guard: &'a C::Guard<'a>) -> RcuListReader<'a, T, C>
+    pub fn reader<'a>(self: &'a Arc<Self>, guard: &'a C::Guard<'a>) -> Reader<'a, T, C>
     where
         C: RcuContext + 'a,
     {
-        RcuListReader {
+        Reader {
             list: self.clone(),
             guard,
         }
     }
 
-    pub fn writer(self: &Arc<Self>) -> Result<RcuListWriter<T, C>> {
-        Ok(RcuListWriter {
+    pub fn writer(self: &Arc<Self>) -> Result<Writer<T, C>> {
+        Ok(Writer {
             list: self.clone(),
             guard: ArcMutexGuardian::take(self.mutex.clone())
                 .map_err(|_| anyhow!("mutex has been poisoned"))?,
@@ -89,7 +89,7 @@ impl<T, C> Drop for RcuList<T, C> {
         let mut node_ptr = self.head.load(Ordering::Relaxed);
         while !node_ptr.is_null() {
             // SAFETY: The pointer is non-null.
-            let next_ptr = unsafe { RcuListNode::next_node(node_ptr, Ordering::Relaxed) };
+            let next_ptr = unsafe { Node::next_node(node_ptr, Ordering::Relaxed) };
             drop(unsafe { Box::from_raw(node_ptr) });
             node_ptr = next_ptr;
         }
@@ -107,7 +107,7 @@ unsafe impl<T, C> Send for RcuList<T, C> where T: Send {}
 unsafe impl<T, C> Sync for RcuList<T, C> where T: Sync {}
 
 /// The read-side API of an [`RcuList`].
-pub struct RcuListReader<'a, T, C>
+pub struct Reader<'a, T, C>
 where
     C: RcuContext + 'a,
 {
@@ -116,28 +116,28 @@ where
     guard: &'a C::Guard<'a>,
 }
 
-impl<'a, T, C> RcuListReader<'a, T, C>
+impl<'a, T, C> Reader<'a, T, C>
 where
     C: RcuContext + 'a,
 {
-    pub fn iter_forward(&self) -> RcuListIterator<T, &Self> {
-        RcuListIterator::new_forward(self, self.list.head.load(Ordering::Acquire))
+    pub fn iter_forward(&self) -> Iter<T, &Self> {
+        Iter::new_forward(self, self.list.head.load(Ordering::Acquire))
     }
 
-    pub fn iter_reverse(&self) -> RcuListIterator<T, &Self> {
-        RcuListIterator::new_reverse(self, self.list.tail.load(Ordering::Acquire))
+    pub fn iter_reverse(&self) -> Iter<T, &Self> {
+        Iter::new_reverse(self, self.list.tail.load(Ordering::Acquire))
     }
 }
 
 /// The write-side API of an [`RcuList`].
-pub struct RcuListWriter<T, C> {
+pub struct Writer<T, C> {
     list: Arc<RcuList<T, C>>,
     #[allow(dead_code)]
     guard: ArcMutexGuardian<()>,
 }
 
-impl<T, C> RcuListWriter<T, C> {
-    pub fn pop_back(&mut self) -> Option<RcuListRef<T, C>>
+impl<T, C> Writer<T, C> {
+    pub fn pop_back(&mut self) -> Option<Ref<T, C>>
     where
         T: Send,
         C: RcuContext,
@@ -148,7 +148,7 @@ impl<T, C> RcuListWriter<T, C> {
         }
 
         Some(
-            RcuListEntry {
+            Entry {
                 list: self.list.clone(),
                 // SAFETY: The pointer is not null.
                 node: unsafe { NonNull::new_unchecked(node_ptr) },
@@ -158,7 +158,7 @@ impl<T, C> RcuListWriter<T, C> {
         )
     }
 
-    pub fn pop_front(&mut self) -> Option<RcuListRef<T, C>>
+    pub fn pop_front(&mut self) -> Option<Ref<T, C>>
     where
         T: Send,
         C: RcuContext,
@@ -169,7 +169,7 @@ impl<T, C> RcuListWriter<T, C> {
         }
 
         Some(
-            RcuListEntry {
+            Entry {
                 list: self.list.clone(),
                 // SAFETY: The pointer is not null.
                 node: unsafe { NonNull::new_unchecked(node_ptr) },
@@ -180,7 +180,7 @@ impl<T, C> RcuListWriter<T, C> {
     }
 
     pub fn push_back(&mut self, data: T) {
-        let new_node = RcuListNode::new(data);
+        let new_node = Node::new(data);
 
         let tail_node_ptr = self.list.tail.load(Ordering::Acquire);
         if tail_node_ptr.is_null() {
@@ -193,7 +193,7 @@ impl<T, C> RcuListWriter<T, C> {
     }
 
     pub fn push_front(&mut self, data: T) {
-        let new_node = RcuListNode::new(data);
+        let new_node = Node::new(data);
 
         let head_node_ptr = self.list.head.load(Ordering::Acquire);
         if head_node_ptr.is_null() {
@@ -207,21 +207,21 @@ impl<T, C> RcuListWriter<T, C> {
 }
 
 /// An individual entry in an [`RcuList`].
-pub struct RcuListEntry<'a, T, C> {
+pub struct Entry<'a, T, C> {
     list: Arc<RcuList<T, C>>,
-    node: NonNull<RcuListNode<T>>,
+    node: NonNull<Node<T>>,
     #[allow(dead_code)]
     life: PhantomData<&'a T>,
 }
 
-impl<'a, T, C> RcuListEntry<'a, T, C> {
+impl<'a, T, C> Entry<'a, T, C> {
     /// Inserts a node after this entry.
     pub fn insert_after(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
-        let node_new = RcuListNode::new(data);
+        let node_new = Node::new(data);
 
         // SAFETY: The pointer is non-null.
-        let node_next = unsafe { RcuListNode::next_node(self.node.as_mut(), Ordering::Acquire) };
+        let node_next = unsafe { Node::next_node(self.node.as_mut(), Ordering::Acquire) };
 
         unsafe {
             node.insert_after(node_new);
@@ -235,10 +235,10 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     /// Inserts a node before this entry.
     pub fn insert_before(&mut self, data: T) {
         let node = unsafe { self.node.as_mut() };
-        let node_new = RcuListNode::new(data);
+        let node_new = Node::new(data);
 
         // SAFETY: The pointer is non-null.
-        let node_prev = unsafe { RcuListNode::prev_node(self.node.as_mut(), Ordering::Acquire) };
+        let node_prev = unsafe { Node::prev_node(self.node.as_mut(), Ordering::Acquire) };
 
         unsafe {
             node.insert_after(node_new);
@@ -250,16 +250,16 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
     }
 
     /// Removes the node from the list.
-    pub fn remove(mut self) -> RcuListRef<T, C>
+    pub fn remove(mut self) -> Ref<T, C>
     where
         T: Send,
         C: RcuContext,
     {
         // SAFETY: The pointer is non-null.
-        let node_prev = unsafe { RcuListNode::prev_node(self.node.as_mut(), Ordering::Acquire) };
+        let node_prev = unsafe { Node::prev_node(self.node.as_mut(), Ordering::Acquire) };
 
         // SAFETY: The pointer is non-null.
-        let node_next = unsafe { RcuListNode::next_node(self.node.as_mut(), Ordering::Acquire) };
+        let node_next = unsafe { Node::next_node(self.node.as_mut(), Ordering::Acquire) };
 
         if node_prev.is_null() {
             self.list.head.store(node_next, Ordering::Release);
@@ -269,6 +269,6 @@ impl<'a, T, C> RcuListEntry<'a, T, C> {
             self.list.tail.store(node_prev, Ordering::Release);
         }
 
-        unsafe { RcuListNode::remove(self.node.as_ptr()) }
+        unsafe { Node::remove(self.node.as_ptr()) }
     }
 }

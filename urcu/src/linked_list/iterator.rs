@@ -2,22 +2,22 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 
-use crate::linked_list::raw::RcuListNode;
-use crate::linked_list::{RcuListEntry, RcuListReader, RcuListWriter};
+use crate::linked_list::raw::Node;
+use crate::linked_list::{Entry, Reader, Writer};
 use crate::RcuContext;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///
 /// [`RcuList`]: crate::linked_list::RcuList
-pub struct RcuListIterator<T, O> {
+pub struct Iter<T, O> {
     #[allow(dead_code)]
     reader: O,
     forward: bool,
-    ptr: *const RcuListNode<T>,
+    ptr: *const Node<T>,
 }
 
-impl<T, O> RcuListIterator<T, O> {
-    pub fn new_forward(reader: O, ptr: *const RcuListNode<T>) -> Self {
+impl<T, O> Iter<T, O> {
+    pub fn new_forward(reader: O, ptr: *const Node<T>) -> Self {
         Self {
             reader,
             forward: true,
@@ -25,7 +25,7 @@ impl<T, O> RcuListIterator<T, O> {
         }
     }
 
-    pub fn new_reverse(reader: O, ptr: *const RcuListNode<T>) -> Self {
+    pub fn new_reverse(reader: O, ptr: *const Node<T>) -> Self {
         Self {
             reader,
             forward: false,
@@ -34,7 +34,7 @@ impl<T, O> RcuListIterator<T, O> {
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListReader<'a, T, C>>
+impl<'a, T, C> Iterator for Iter<T, &'a Reader<'a, T, C>>
 where
     C: RcuContext + 'a,
 {
@@ -50,9 +50,9 @@ where
             let item = &*self.ptr;
 
             self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
+                Node::next_node(self.ptr, Ordering::Acquire)
             } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+                Node::prev_node(self.ptr, Ordering::Acquire)
             };
 
             Some(item)
@@ -60,7 +60,7 @@ where
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
+impl<'a, T, C> Iterator for Iter<T, &'a Writer<T, C>> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -73,9 +73,9 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
             let item = &*self.ptr;
 
             self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
+                Node::next_node(self.ptr, Ordering::Acquire)
             } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+                Node::prev_node(self.ptr, Ordering::Acquire)
             };
 
             Some(item)
@@ -83,8 +83,8 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a RcuListWriter<T, C>> {
     }
 }
 
-impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
-    type Item = RcuListEntry<'a, T, C>;
+impl<'a, T, C> Iterator for Iter<T, &'a mut Writer<T, C>> {
+    type Item = Entry<'a, T, C>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.ptr.is_null() {
@@ -93,15 +93,15 @@ impl<'a, T, C> Iterator for RcuListIterator<T, &'a mut RcuListWriter<T, C>> {
 
         // SAFETY: The pointer is non-null.
         unsafe {
-            let item = self.ptr as *mut RcuListNode<T>;
+            let item = self.ptr as *mut Node<T>;
 
             self.ptr = if self.forward {
-                RcuListNode::next_node(self.ptr, Ordering::Acquire)
+                Node::next_node(self.ptr, Ordering::Acquire)
             } else {
-                RcuListNode::prev_node(self.ptr, Ordering::Acquire)
+                Node::prev_node(self.ptr, Ordering::Acquire)
             };
 
-            Some(RcuListEntry {
+            Some(Entry {
                 node: NonNull::new_unchecked(item),
                 list: self.reader.list.clone(),
                 life: PhantomData,

@@ -1,16 +1,16 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicPtr, Ordering};
 
-use crate::linked_list::reference::RcuListRef;
+use crate::linked_list::reference::Ref;
 use crate::RcuContext;
 
-pub struct RcuListNode<T> {
+pub struct Node<T> {
     prev: AtomicPtr<Self>,
     next: AtomicPtr<Self>,
     data: T,
 }
 
-impl<T> RcuListNode<T> {
+impl<T> Node<T> {
     pub fn new(data: T) -> *mut Self {
         Box::into_raw(Box::new(Self {
             prev: AtomicPtr::new(std::ptr::null_mut()),
@@ -82,7 +82,7 @@ impl<T> RcuListNode<T> {
     /// #### Safety
     ///
     /// Require mutual exclusion on the list.
-    pub unsafe fn remove<C>(ptr: *mut Self) -> RcuListRef<T, C>
+    pub unsafe fn remove<C>(ptr: *mut Self) -> Ref<T, C>
     where
         T: Send,
         C: RcuContext,
@@ -103,11 +103,11 @@ impl<T> RcuListNode<T> {
             prev.next.store(next, Ordering::Release);
         }
 
-        RcuListRef::new(ptr)
+        Ref::new(ptr)
     }
 }
 
-impl<T> Deref for RcuListNode<T> {
+impl<T> Deref for Node<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -115,7 +115,7 @@ impl<T> Deref for RcuListNode<T> {
     }
 }
 
-impl<T> DerefMut for RcuListNode<T> {
+impl<T> DerefMut for Node<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.data
     }
