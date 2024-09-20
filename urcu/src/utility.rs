@@ -11,3 +11,12 @@ unsafe impl<T> Send for UnSync<T> {}
 pub type PhantomUnsync<T> = PhantomData<UnSync<T>>;
 
 pub type PhantomUnsend<T> = PhantomData<UnSend<T>>;
+
+pub mod asserts {
+    use super::*;
+
+    pub type NotSendNotSync = (UnSend<()>, UnSync<()>);
+    pub type SendButNotSync = ((), UnSync<()>);
+    pub type NotSendButSync = (UnSend<()>, ());
+    pub type SendAndSync = ((), ());
+}
