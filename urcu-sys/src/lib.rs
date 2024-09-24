@@ -10,6 +10,13 @@ pub use bindings::{
     urcu_gp_poll_state as RcuPollState,
 };
 
+pub use bindings::{
+    rcu_cmpxchg_pointer_sym as rcu_cmpxchg_pointer,
+    rcu_dereference_sym as rcu_dereference,
+    rcu_set_pointer_sym as rcu_set_pointer,
+    rcu_xchg_pointer_sym as rcu_xchg_pointer,
+};
+
 pub mod lfht {
     pub use crate::bindings::{
         cds_lfht as HashTable,
