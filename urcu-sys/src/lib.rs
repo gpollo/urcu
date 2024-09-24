@@ -64,6 +64,31 @@ pub mod lfq {
     };
 }
 
+pub mod lfs {
+    pub use crate::bindings::{
+        __cds_lfs_stack as Stack,
+        cds_lfs_head as StackHead,
+        cds_lfs_node as StackNode,
+        cds_lfs_stack as StackLock,
+        cds_lfs_stack_ptr_t as StackPtr,
+    };
+
+    pub use crate::bindings::{
+        __cds_lfs_init as init,
+        __cds_lfs_pop as pop,
+        __cds_lfs_pop_all as pop_all,
+        cds_lfs_destroy as destroy,
+        cds_lfs_empty as empty,
+        cds_lfs_init as init_lock,
+        cds_lfs_node_init as node_init,
+        cds_lfs_pop_all_blocking as pop_all_blocking,
+        cds_lfs_pop_blocking as pop_blocking,
+        cds_lfs_pop_lock as pop_lock,
+        cds_lfs_pop_unlock as pop_unlock,
+        cds_lfs_push as push,
+    };
+}
+
 /*************/
 /* rculfhash */
 /*************/
