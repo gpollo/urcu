@@ -52,6 +52,18 @@ pub mod wfcq {
     pub use crate::bindings::cds_wfcq_node as QueueNode;
 }
 
+pub mod lfq {
+    pub use crate::bindings::{cds_lfq_node_rcu as QueueNode, cds_lfq_queue_rcu as Queue};
+
+    pub use crate::bindings::{
+        cds_lfq_dequeue_rcu as dequeue,
+        cds_lfq_destroy_rcu as destroy,
+        cds_lfq_enqueue_rcu as enqueue,
+        cds_lfq_init_rcu as init,
+        cds_lfq_node_init_rcu as node_init,
+    };
+}
+
 /*************/
 /* rculfhash */
 /*************/
