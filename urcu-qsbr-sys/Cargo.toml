@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [package.metadata.pkg-config]
-liburcu-qsbr = "0.11"
+liburcu-qsbr = "0.14"
 
 [dependencies]
 urcu-sys = { path = "../urcu-sys" }
@@ -13,6 +13,9 @@ urcu-sys = { path = "../urcu-sys" }
 [build-dependencies]
 bindgen = "0.69"
 metadeps = "1"
+urcu-src = { path = "../urcu-src" }
 
 [features]
+default = []
 debug = []
+static = ["urcu-src/static"]

@@ -5,9 +5,15 @@ version = "0.1.0"
 edition = "2021"
 
 [package.metadata.pkg-config]
-liburcu = "0.11"
+liburcu = "0.14"
+liburcu-cds = "0.14"
 
 [build-dependencies]
 bindgen = { version = "0.69", features = ["experimental"] }
 cc = "1"
 metadeps = "1"
+urcu-src = { path = "../urcu-src" }
+
+[features]
+default = []
+static = ["urcu-src/static"]
