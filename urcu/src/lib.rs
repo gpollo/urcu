@@ -3,6 +3,7 @@ mod utility;
 
 pub mod boxed;
 pub mod linked_list;
+pub mod shared;
 
 pub use crate::boxed::container::RcuBox;
 pub use crate::linked_list::container::RcuList;
