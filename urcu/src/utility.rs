@@ -8,9 +8,9 @@ unsafe impl<T> Sync for UnSend<T> {}
 pub struct UnSync<T>(*const T);
 unsafe impl<T> Send for UnSync<T> {}
 
-pub type PhantomUnsync<T> = PhantomData<UnSync<T>>;
+pub type PhantomUnsync<T = ()> = PhantomData<UnSync<T>>;
 
-pub type PhantomUnsend<T> = PhantomData<UnSend<T>>;
+pub type PhantomUnsend<T = ()> = PhantomData<UnSend<T>>;
 
 #[allow(dead_code)]
 pub mod asserts {

@@ -11,6 +11,7 @@ use crate::{DefaultContext, RcuContext};
 
 pub use crate::linked_list::iterator::*;
 pub use crate::linked_list::reference::*;
+pub use crate::utility::*;
 
 /// Defines an RCU-enabled doubly linked list.
 ///
@@ -75,6 +76,8 @@ impl<T, C> RcuList<T, C> {
             list: self.clone(),
             guard: ArcMutexGuardian::take(self.mutex.clone())
                 .map_err(|_| anyhow!("mutex has been poisoned"))?,
+            _unsend: PhantomData,
+            _unsync: PhantomData,
         })
     }
 }
@@ -130,6 +133,8 @@ pub struct Writer<T, C> {
     pub(crate) list: Arc<RcuList<T, C>>,
     #[allow(dead_code)]
     guard: ArcMutexGuardian<()>,
+    _unsend: PhantomUnsend<()>,
+    _unsync: PhantomUnsync<()>,
 }
 
 impl<T, C> Writer<T, C> {
