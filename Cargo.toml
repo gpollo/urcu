@@ -5,10 +5,11 @@ members = [
     "urcu-mb-sys",
     "urcu-memb-sys",
     "urcu-qsbr-sys",
+    "urcu-src",
     "urcu-sys",
     "urcu",
 ]
 
 [profile.release]
-opt-level = 0
-lto = false
+opt-level = 2
+lto = true

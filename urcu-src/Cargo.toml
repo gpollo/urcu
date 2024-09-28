@@ -1,0 +1,16 @@
+[package]
+name = "urcu-src"
+license = "GPL-3.0-or-later"
+version = "0.1.0+0.14.1"
+edition = "2021"
+
+[dependencies]
+bindgen = { version = "0.69", features = ["experimental"] }
+cc = "1"
+
+[build-dependencies]
+autotools = { version = "0.2", optional = true }
+
+[features]
+default = []
+static = ["autotools"]
