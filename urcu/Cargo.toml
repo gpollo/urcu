@@ -24,6 +24,13 @@ flavor-bp = ["dep:urcu-bp-sys"]
 flavor-mb = ["dep:urcu-mb-sys"]
 flavor-memb = ["dep:urcu-memb-sys"]
 flavor-qsbr = ["dep:urcu-qsbr-sys"]
+static = [
+    "urcu-bp-sys/static",
+    "urcu-mb-sys/static",
+    "urcu-memb-sys/static",
+    "urcu-qsbr-sys/static",
+    "urcu-sys/static",
+]
 
 [dev-dependencies]
 ctrlc = "3"
