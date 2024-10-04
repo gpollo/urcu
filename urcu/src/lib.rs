@@ -5,10 +5,12 @@ mod utility;
 
 pub mod boxed;
 pub mod list;
+pub mod queue;
 pub mod shared;
 
 pub use crate::boxed::container::RcuBox;
 pub use crate::list::container::RcuList;
+pub use crate::queue::container::RcuQueue;
 pub use crate::rcu::api::RcuUnsafe;
 pub use crate::rcu::callback::*;
 pub use crate::rcu::cleanup::*;
