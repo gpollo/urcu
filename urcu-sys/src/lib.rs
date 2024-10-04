@@ -55,6 +55,26 @@ pub mod lfht {
     };
 }
 
+pub mod list {
+    pub use crate::bindings::cds_list_head as ListHead;
+
+    pub use crate::bindings::{
+        cds_list_add as add,
+        cds_list_add_rcu as add_rcu,
+        cds_list_add_tail as add_tail,
+        cds_list_add_tail_rcu as add_tail_rcu,
+        cds_list_del as del,
+        cds_list_del_init as del_init,
+        cds_list_del_rcu as del_rcu,
+        cds_list_empty as empty,
+        cds_list_move as r#move,
+        cds_list_replace as replace,
+        cds_list_replace_init as replace_init,
+        cds_list_replace_rcu as replace_rcu,
+        cds_list_splice as splice,
+    };
+}
+
 pub mod wfcq {
     pub use crate::bindings::cds_wfcq_node as QueueNode;
 }
