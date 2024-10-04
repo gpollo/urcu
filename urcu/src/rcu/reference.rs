@@ -49,6 +49,18 @@ pub unsafe trait RcuRef<C> {
     /// You must wait for the grace period before taking ownership.
     unsafe fn take_ownership_unchecked(self) -> Self::Output;
 
+    /// Take ownership of the reference.
+    fn take_ownership(self, context: &mut C) -> Self::Output
+    where
+        Self: Sized,
+        C: RcuContext,
+    {
+        context.rcu_synchronize();
+
+        // SAFETY: RCU grace period has ended.
+        unsafe { self.take_ownership_unchecked() }
+    }
+
     /// Configure a cleanup callback to be called after the grace period.
     ///
     /// #### Note
