@@ -449,6 +449,7 @@ pub unsafe fn rcu_dereference_mut<T>(pointer: *mut T) -> *mut T {
 mod asserts {
     use static_assertions::assert_not_impl_all;
 
+    #[cfg(feature = "flavor-bp")]
     mod bp {
         use super::*;
 
@@ -464,6 +465,7 @@ mod asserts {
         assert_not_impl_all!(RcuContextBp: Sync);
     }
 
+    #[cfg(feature = "flavor-mb")]
     mod mb {
         use super::*;
 
@@ -479,6 +481,7 @@ mod asserts {
         assert_not_impl_all!(RcuContextMb: Sync);
     }
 
+    #[cfg(feature = "flavor-memb")]
     mod memb {
         use super::*;
 
@@ -494,6 +497,7 @@ mod asserts {
         assert_not_impl_all!(RcuContextMemb: Sync);
     }
 
+    #[cfg(feature = "flavor-qsbr")]
     mod qsbr {
         use super::*;
 
