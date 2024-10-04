@@ -1,8 +1,11 @@
+#![feature(ptr_as_ref_unchecked)]
+
 mod rcu;
 mod utility;
 
 pub mod boxed;
 pub mod linked_list;
+pub mod list;
 pub mod shared;
 
 pub use crate::boxed::container::RcuBox;
