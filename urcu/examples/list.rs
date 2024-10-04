@@ -1,9 +1,10 @@
+use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use urcu::flavor::RcuContextMemb;
-use urcu::RcuList;
-use urcu::{rcu_take_ownership, RcuContext};
+use urcu::RcuContext;
+use urcu::{RcuList, RcuRef};
 
 struct ReaderThread {
     publisher_count: Arc<AtomicUsize>,
@@ -21,24 +22,24 @@ impl ReaderThread {
     fn run(self) {
         let context = RcuContextMemb::rcu_register().unwrap();
 
-        let mut node_count = 0;
+        let mut node_count = 0u128;
         let mut total_sum = 0u128;
 
         loop {
-            let guard = context.rcu_read_lock();
-            let reader = self.list.reader(&guard);
-            let mut iterator = reader.iter_forward().peekable();
-
-            if iterator.peek().is_none() {
-                if self.publisher_count.load(Ordering::Relaxed) == 0 {
+            if self.list.is_empty() {
+                if self.publisher_count.load(Ordering::Acquire) == 0 {
                     break;
                 }
             }
 
-            for value in reader.iter_forward() {
+            let guard = context.rcu_read_lock();
+
+            for value in self.list.iter_forward(&guard).peekable() {
                 node_count += 1;
                 total_sum += u128::from(*value);
             }
+
+            drop(guard);
         }
 
         println!(
@@ -74,10 +75,9 @@ impl PublisherThread {
         let mut total_sum = 0u128;
         let mut value = 0;
 
-        while !self.exit_signal.load(Ordering::Relaxed) {
-            let mut writer = self.list.writer().unwrap();
-            writer.push_back(value);
-            writer.push_front(value);
+        while !self.exit_signal.load(Ordering::Acquire) {
+            self.list.push_back(value).unwrap();
+            self.list.push_front(value).unwrap();
 
             node_count += 2;
             total_sum += 2 * u128::from(value);
@@ -113,16 +113,16 @@ impl ConsumerThread {
         let mut total_sum = 0u128;
 
         loop {
-            let mut writer = self.list.writer().unwrap();
-            let value = writer.pop_back();
-            let value = rcu_take_ownership!(&mut context, value);
+            let value = self.list.pop_back().unwrap();
 
-            if let Some(value) = value {
+            if let Some(value) = &value {
                 node_count += 1;
-                total_sum += u128::from(*value);
-            } else if self.publisher_count.load(Ordering::Relaxed) == 0 {
+                total_sum += u128::from(*value.deref());
+            } else if self.publisher_count.load(Ordering::Acquire) == 0 {
                 break;
             }
+
+            value.defer_cleanup(&mut context);
         }
 
         println!(
@@ -140,7 +140,7 @@ fn main() {
 
     ctrlc::set_handler(move || {
         println!("");
-        exit.store(true, Ordering::Relaxed);
+        exit.store(true, Ordering::Release);
     })
     .expect("Error setting Ctrl-C handler");
 

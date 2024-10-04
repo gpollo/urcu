@@ -9,7 +9,7 @@ pub mod list;
 pub mod shared;
 
 pub use crate::boxed::container::RcuBox;
-pub use crate::linked_list::container::RcuList;
+pub use crate::list::container::RcuList;
 pub use crate::rcu::api::RcuUnsafe;
 pub use crate::rcu::callback::*;
 pub use crate::rcu::cleanup::*;
