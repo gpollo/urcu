@@ -4,7 +4,6 @@ mod rcu;
 mod utility;
 
 pub mod boxed;
-pub mod linked_list;
 pub mod list;
 pub mod shared;
 
