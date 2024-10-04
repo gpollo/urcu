@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::ptr::NonNull;
 
 use crate::rcu::reference::RcuRef;
 use crate::{utility::*, RcuContext};
@@ -34,7 +35,7 @@ where
     T: Send + 'static,
     C: RcuContext + 'static,
 {
-    ptr: *const T,
+    ptr: *mut T,
     _unsend: PhantomUnsend<(T, C)>,
     _unsync: PhantomUnsync<(T, C)>,
 }
@@ -44,9 +45,9 @@ where
     T: Send,
     C: RcuContext,
 {
-    pub(crate) fn new(ptr: *const T) -> Self {
+    pub(crate) fn new(ptr: NonNull<T>) -> Self {
         Self {
-            ptr,
+            ptr: ptr.as_ptr(),
             _unsend: PhantomData,
             _unsync: PhantomData,
         }
@@ -67,7 +68,7 @@ where
 
     unsafe fn take_ownership_unchecked(mut self) -> Self::Output {
         // SAFETY: There are no readers after the RCU grace period.
-        let output = BoxRefOwned(Box::from_raw(self.ptr as *mut T));
+        let output = BoxRefOwned(Box::from_raw(self.ptr));
 
         // SAFETY: We don't want to cleanup when dropping `self`.
         self.ptr = std::ptr::null_mut();
@@ -92,8 +93,8 @@ where
     C: RcuContext + 'static,
 {
     fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            Self::new(self.ptr).safe_cleanup();
+        if let Some(ptr) = NonNull::new(self.ptr) {
+            Self::new(ptr).safe_cleanup();
         }
     }
 }

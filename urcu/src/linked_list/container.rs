@@ -280,6 +280,6 @@ impl<'a, T, C> Entry<'a, T, C> {
             self.list.tail.store(node_prev, Ordering::Release);
         }
 
-        unsafe { Node::remove(self.node.as_ptr()) }
+        unsafe { Node::remove(self.node) }
     }
 }

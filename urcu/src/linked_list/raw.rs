@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::linked_list::reference::Ref;
@@ -82,12 +83,13 @@ impl<T> Node<T> {
     /// #### Safety
     ///
     /// Require mutual exclusion on the list.
-    pub unsafe fn remove<C>(ptr: *mut Self) -> Ref<T, C>
+    pub unsafe fn remove<C>(ptr: NonNull<Self>) -> Ref<T, C>
     where
         T: Send,
         C: RcuContext,
     {
-        let node = unsafe { &*ptr };
+        // SAFETY: The pointer can be safely converted to a reference.
+        let node = unsafe { ptr.as_ref() };
 
         let prev_ptr = node.prev.load(Ordering::Relaxed);
         let prev = unsafe { &mut *prev_ptr };
