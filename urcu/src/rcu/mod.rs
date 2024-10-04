@@ -18,6 +18,20 @@ pub trait RcuPoller {
 
 /// This trait defines the per-thread RCU context.
 ///
+/// #### Design
+///
+/// This trait exploits the borrowing rule of Rust.
+///
+/// > At any given time, you can have either one mutable reference (`&mut T`) or
+/// > any number of immutable references (`&T`).
+///
+/// By exploiting this rule, we can enforce that a thread never executes an RCU
+/// synchronization barrier at the same time as it holds an RCU read lock. For
+/// example, [`RcuContext::rcu_read_lock`] requires (`&self`), meaning we can
+/// nest as many read locks as we want. On the other hand, [`RcuContext::rcu_synchronize`]
+/// requires `&mut self`, meaning we can never call it while a read guard borrows
+/// `&self`.
+///
 /// #### Safety
 ///
 /// 1. You must enforce single context per thread for a specific RCU flavor.
