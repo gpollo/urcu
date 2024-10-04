@@ -65,7 +65,7 @@ where
 {
     type Output = BoxRefOwned<T>;
 
-    unsafe fn take_ownership(mut self) -> Self::Output {
+    unsafe fn take_ownership_unchecked(mut self) -> Self::Output {
         // SAFETY: There are no readers after the RCU grace period.
         let output = BoxRefOwned(Box::from_raw(self.ptr as *mut T));
 

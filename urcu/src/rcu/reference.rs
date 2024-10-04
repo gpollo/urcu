@@ -47,7 +47,7 @@ pub unsafe trait RcuRef<C> {
     /// #### Safety
     ///
     /// You must wait for the grace period before taking ownership.
-    unsafe fn take_ownership(self) -> Self::Output;
+    unsafe fn take_ownership_unchecked(self) -> Self::Output;
 
     /// Configure a cleanup callback to be called after the grace period.
     ///
@@ -64,7 +64,7 @@ pub unsafe trait RcuRef<C> {
         context.rcu_defer(RcuDeferSimple::<_, C>::new(move || {
             // SAFETY: The caller already executed an RCU syncronization.
             unsafe {
-                self.take_ownership();
+                self.take_ownership_unchecked();
             }
         }))
     }
@@ -84,7 +84,7 @@ pub unsafe trait RcuRef<C> {
         context.rcu_call(RcuCallSimple::new(move || {
             // SAFETY: The caller already executed an RCU syncronization.
             unsafe {
-                self.take_ownership();
+                self.take_ownership_unchecked();
             }
         }));
     }
@@ -99,7 +99,7 @@ pub unsafe trait RcuRef<C> {
 
             // SAFETY: An RCU syncronization barrier was called.
             unsafe {
-                self.take_ownership();
+                self.take_ownership_unchecked();
             }
         }));
     }
@@ -114,8 +114,8 @@ where
 {
     type Output = Option<T::Output>;
 
-    unsafe fn take_ownership(self) -> Self::Output {
-        self.map(|r| r.take_ownership())
+    unsafe fn take_ownership_unchecked(self) -> Self::Output {
+        self.map(|r| r.take_ownership_unchecked())
     }
 }
 
@@ -128,7 +128,9 @@ where
 {
     type Output = Vec<T::Output>;
 
-    unsafe fn take_ownership(self) -> Self::Output {
-        self.into_iter().map(|r| r.take_ownership()).collect()
+    unsafe fn take_ownership_unchecked(self) -> Self::Output {
+        self.into_iter()
+            .map(|r| r.take_ownership_unchecked())
+            .collect()
     }
 }

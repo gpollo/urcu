@@ -120,7 +120,7 @@ macro_rules! define_rcu_take_ownership {
             context.rcu_synchronize();
 
             // SAFETY: RCU grace period has ended.
-            unsafe { T1::take_ownership(r1) }
+            unsafe { T1::take_ownership_unchecked(r1) }
         }
     };
 
@@ -137,7 +137,7 @@ macro_rules! define_rcu_take_ownership {
                 context.rcu_synchronize();
 
                 // SAFETY: RCU grace period has ended.
-                unsafe { ($([<T $x>]::take_ownership([<r $x>])),*,) }
+                unsafe { ($([<T $x>]::take_ownership_unchecked([<r $x>])),*,) }
             }
         }
     };

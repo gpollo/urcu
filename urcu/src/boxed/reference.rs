@@ -50,7 +50,7 @@ where
 {
     type Output = Box<T>;
 
-    unsafe fn take_ownership(mut self) -> Self::Output {
+    unsafe fn take_ownership_unchecked(mut self) -> Self::Output {
         let output = Box::from_raw(self.ptr);
 
         // SAFETY: We don't want to cleanup when dropping `self`.
