@@ -8,14 +8,13 @@ use crate::rcu::RcuContext;
 ///
 /// #### Note
 ///
-/// To get ownership of the reference, you can use [`rcu_take_ownership`]. If ownership is
-/// never taken, cleanup will be executed in a RCU cleanup thread.
+/// To get ownership of the reference, you can use [`RcuRef::take_ownership`]. If ownership
+/// is never taken, cleanup will be executed in a RCU cleanup thread.
 ///
 /// #### Requirements
 ///
 /// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
-/// [`rcu_take_ownership`]: crate::rcu_take_ownership
 /// [`RcuBox`]: crate::boxed::container::RcuBox
 pub struct Ref<T, C>
 where

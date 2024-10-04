@@ -1,6 +1,6 @@
 use urcu::flavor::RcuContextMemb;
 use urcu::RcuList;
-use urcu::{rcu_take_ownership, RcuContext, RcuRef};
+use urcu::{RcuContext, RcuRef};
 
 fn main() {
     let mut context = RcuContextMemb::rcu_register().unwrap();
@@ -20,7 +20,7 @@ fn main() {
     writer.pop_back().unwrap().call_cleanup(&context);
     writer.pop_back().unwrap().safe_cleanup();
 
-    let (v10, v20) = rcu_take_ownership!(&mut context, v10, v20);
+    let (v10, v20) = (v10, v20).take_ownership(&mut context);
     assert_eq!(*v10, 10);
     assert_eq!(*v20, 20);
 }

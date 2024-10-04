@@ -146,3 +146,32 @@ where
             .collect()
     }
 }
+
+macro_rules! impl_rcu_ref_for_tuple {
+    ($($x:literal),*) => {
+        paste::paste!{
+            /// #### Safety
+            ///
+            /// It is the responsability of the underlying types to be safe.
+            unsafe impl<$([<T $x>]),*, C> RcuRef<C> for ($([<T $x>]),*)
+            where
+                $([<T $x>]: RcuRef<C>),*,
+            {
+                type Output = ($([<T $x>]::Output),*,);
+
+                unsafe fn take_ownership_unchecked(self) -> Self::Output {
+                    (
+                        $(self.$x.take_ownership_unchecked()),*,
+                    )
+                }
+            }
+        }
+    };
+}
+
+impl_rcu_ref_for_tuple!(0, 1);
+impl_rcu_ref_for_tuple!(0, 1, 2);
+impl_rcu_ref_for_tuple!(0, 1, 2, 3);
+impl_rcu_ref_for_tuple!(0, 1, 2, 3, 4);
+impl_rcu_ref_for_tuple!(0, 1, 2, 3, 4, 5);
+impl_rcu_ref_for_tuple!(0, 1, 2, 3, 4, 5, 6);
