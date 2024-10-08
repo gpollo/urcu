@@ -37,10 +37,7 @@ where
 
         loop {
             match self.commands.recv() {
-                Ok(RcuCleanerCommand::Execute(callback)) => {
-                    println!("TEST");
-                    callback(&mut context)
-                }
+                Ok(RcuCleanerCommand::Execute(callback)) => callback(&mut context),
                 Ok(RcuCleanerCommand::Shutdown) | Err(_) => {
                     println!("shutting down RCU cleanup thread");
                     break;
@@ -134,6 +131,24 @@ macro_rules! impl_cleanup_for_context {
                 Self::CLEANUP_SENDER.with(|cell| {
                     cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
                         .send(callback);
+                });
+            }
+
+            pub(crate) fn cleanup_send_and_block(callback: RcuCleanup<Self>) {
+                Self::CLEANUP_SENDER.with(|cell| {
+                    let (tx, rx) = std::sync::mpsc::channel::<()>();
+
+                    cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
+                        .send(Box::new(move |mut context| {
+                            callback(&mut context);
+                            if let Err(e) = tx.send(()) {
+                                log::error!("failed to send cleanup signal: {:?}", e);
+                            }
+                        }));
+
+                    if let Err(e) = rx.recv() {
+                        log::error!("failed to receive cleanup signal: {:?}", e);
+                    }
                 });
             }
 

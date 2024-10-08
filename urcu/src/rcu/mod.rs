@@ -118,6 +118,16 @@ pub unsafe trait RcuContext {
     ///
     /// The callback must be [`Send`] because it will be executed by an helper thread.
     fn rcu_cleanup(callback: RcuCleanup<Self>);
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// Unlike [`RcuContext::rcu_call`], this function can be called by any thread whether
+    /// it is registered or not.
+    ///
+    /// #### Note
+    ///
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
+    fn rcu_cleanup_and_block(callback: RcuCleanup<Self>);
 }
 
 macro_rules! define_rcu_guard {
@@ -320,6 +330,10 @@ macro_rules! define_rcu_context {
 
             fn rcu_cleanup(callback: RcuCleanup<Self>) {
                 Self::cleanup_send(callback);
+            }
+
+            fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
+                Self::cleanup_send_and_block(callback);
             }
         }
     };
