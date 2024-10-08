@@ -21,7 +21,7 @@ pub mod lfht {
     pub use crate::bindings::{
         cds_lfht as HashTable,
         cds_lfht_iter as HashTableIterator,
-        cds_lfht_mm_type as HashTableMemoryModel,
+        cds_lfht_mm_type as HashTableMemoryManagement,
         cds_lfht_node as HashTableNode,
     };
 
@@ -47,9 +47,9 @@ pub mod lfht {
     };
 
     pub use crate::bindings::{
-        cds_lfht_mm_chunk as MEMORY_MODEL_CHUNK,
-        cds_lfht_mm_mmap as MEMORY_MODEL_MMAP,
-        cds_lfht_mm_order as MEMORY_MODLE_ORDER,
+        cds_lfht_mm_chunk as MEMORY_MANAGEMENT_CHUNK,
+        cds_lfht_mm_mmap as MEMORY_MANAGEMENT_MMAP,
+        cds_lfht_mm_order as MEMORY_MANAGEMENT_ORDER,
         CDS_LFHT_ACCOUNTING as ACCOUNTING,
         CDS_LFHT_AUTO_RESIZE as AUTO_RESIZE,
     };
