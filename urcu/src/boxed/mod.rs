@@ -1,7 +1,6 @@
 pub(crate) mod container;
 pub(crate) mod reference;
 
-pub use crate::boxed::container::Accessor;
 pub use crate::boxed::reference::*;
 
 mod asserts {
@@ -30,26 +29,6 @@ mod asserts {
         // T: Send + Sync
         assert_impl_all!(RcuBox<SendAndSync, DefaultContext>: Send);
         assert_impl_all!(RcuBox<SendAndSync, DefaultContext>: Sync);
-    }
-
-    mod rcu_box_accessor {
-        use super::*;
-
-        // T: !Send + !Sync
-        assert_not_impl_all!(Accessor<'static, NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Accessor<'static, NotSendNotSync, DefaultContext>: Sync);
-
-        // T: Send + !Sync
-        assert_not_impl_all!(Accessor<'static, SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Accessor<'static, SendButNotSync, DefaultContext>: Sync);
-
-        // T: !Send + Sync
-        assert_not_impl_all!(Accessor<'static, NotSendButSync, DefaultContext>: Send);
-        assert_not_impl_all!(Accessor<'static, NotSendButSync, DefaultContext>: Sync);
-
-        // T: Send + Sync
-        assert_not_impl_all!(Accessor<'static, SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Accessor<'static, SendAndSync, DefaultContext>: Sync);
     }
 
     mod rcu_box_ref {

@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
@@ -32,6 +31,7 @@ pub struct RcuBox<T, C> {
 }
 
 impl<T, C> RcuBox<T, C> {
+    /// Creates a new RCU box.
     pub fn new(data: T) -> Arc<Self> {
         Arc::new(Self {
             ptr: AtomicPtr::new(Box::into_raw(Box::new(data))),
@@ -40,16 +40,26 @@ impl<T, C> RcuBox<T, C> {
         })
     }
 
-    pub fn accessor<'a>(&'a self, guard: &'a C::Guard<'a>) -> Accessor<'a, T, C>
+    /// Returns a immutable reference to the data.
+    pub fn as_ref<'a>(&'a self, guard: &'a C::Guard<'a>) -> &'a T
     where
         C: RcuContext,
     {
-        Accessor {
-            boxed: self,
-            _guard: guard,
-            _unsend: PhantomData,
-            _unsync: PhantomData,
-        }
+        let _ = guard;
+
+        // SAFETY: The underlying pointer is never null.
+        unsafe { self.ptr.load(Ordering::Acquire).as_ref_unchecked() }
+    }
+
+    /// Replaces the underlying data atomically.
+    pub fn replace(&self, data: T) -> Ref<T, C>
+    where
+        T: Send,
+        C: RcuContext,
+    {
+        let new_ptr = Box::into_raw(Box::new(data));
+        let old_ptr = self.ptr.swap(new_ptr, Ordering::Release);
+        Ref::new(old_ptr)
     }
 }
 
@@ -69,42 +79,5 @@ impl<T, C> Drop for RcuBox<T, C> {
         unsafe {
             let _ = Box::from_raw(self.ptr.load(Ordering::Relaxed));
         }
-    }
-}
-
-/// A RCU read protected accessor to a [`RcuBox`].
-pub struct Accessor<'a, T, C>
-where
-    C: RcuContext,
-{
-    boxed: &'a RcuBox<T, C>,
-    _guard: &'a C::Guard<'a>,
-    _unsend: PhantomUnsend<C>,
-    _unsync: PhantomUnsync<C>,
-}
-
-impl<'a, T, C> Accessor<'a, T, C>
-where
-    C: RcuContext,
-{
-    pub fn replace(&self, data: T) -> Ref<T, C>
-    where
-        T: Send,
-    {
-        let new_ptr = Box::into_raw(Box::new(data));
-        let old_ptr = self.boxed.ptr.swap(new_ptr, Ordering::Release);
-        Ref::new(old_ptr)
-    }
-}
-
-impl<'a, T, C> Deref for Accessor<'a, T, C>
-where
-    C: RcuContext,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        // SAFETY: The atomic pointer is never null except during dropping.
-        unsafe { &*self.boxed.ptr.load(Ordering::Acquire) }
     }
 }
