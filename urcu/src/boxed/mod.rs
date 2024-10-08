@@ -4,10 +4,11 @@ pub(crate) mod reference;
 pub use crate::boxed::reference::*;
 
 mod asserts {
+    use super::*;
+
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::boxed::container::*;
-    use crate::boxed::reference::*;
     use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
 

@@ -23,7 +23,7 @@ use crate::utility::{PhantomUnsend, PhantomUnsync};
 ///
 /// It is safe to send an `Arc<RcuBox<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuBox<T>` without calling any RCU primitives since lifetime rules
-/// prevent any other thread from accessing an RCU reference.
+/// prevent any other thread from accessing a RCU reference.
 pub struct RcuBox<T, C> {
     ptr: AtomicPtr<T>,
     _unsend: PhantomUnsend<C>,

@@ -85,9 +85,9 @@ impl<T> RawStack<T> {
 
     /// #### Safety
     ///
-    /// The caller must be inside an RCU critical section.
+    /// The caller must be inside a RCU critical section.
     ///
-    /// The caller must wait an RCU grace period before freeing the node.
+    /// The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn pop(&self) -> *mut RawNode<T> {
         let handle = &self.handle as *const Stack as *mut Stack;
 
@@ -102,9 +102,9 @@ impl<T> RawStack<T> {
 
     /// #### Safety
     ///
-    /// The caller must be inside an RCU critical section.
+    /// The caller must be inside a RCU critical section.
     ///
-    /// The caller must wait an RCU grace period before freeing the nodes.
+    /// The caller must wait a RCU grace period before freeing the nodes.
     pub unsafe fn pop_all(&self) -> RawIterRef<T> {
         let handle = &self.handle as *const Stack as *mut Stack;
 
@@ -116,7 +116,7 @@ impl<T> RawStack<T> {
 
     /// #### Safety
     ///
-    /// The caller must be inside an RCU critical section.
+    /// The caller must be inside a RCU critical section.
     pub unsafe fn head(&self) -> *const RawNode<T> {
         let handle = crate::rcu_dereference(self.handle.head);
         if handle.is_null() {
@@ -128,7 +128,7 @@ impl<T> RawStack<T> {
 
     /// #### Safety
     ///
-    /// The caller must be inside an RCU critical section.
+    /// The caller must be inside a RCU critical section.
     pub unsafe fn iter(&self) -> RawIter<T> {
         RawIter::<T>::new(&self.handle)
     }
@@ -150,7 +150,7 @@ pub struct RawIter<T> {
 impl<T> RawIter<T> {
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     unsafe fn new(stack: &Stack) -> Self {
         Self {
             node: crate::rcu_dereference(stack.head)
@@ -164,7 +164,7 @@ impl<T> RawIter<T> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn next(&mut self) -> *const RawNode<T> {
         match self.node.as_ref() {
             None => std::ptr::null(),
@@ -199,7 +199,7 @@ impl<T> RawIterRef<T> {
 
     /// #### Safety
     ///
-    /// The caller must wait an RCU grace period before freeing the node.
+    /// The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn next(&mut self) -> *mut RawNode<T> {
         match self.node.as_mut() {
             None => std::ptr::null_mut(),

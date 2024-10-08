@@ -2,6 +2,7 @@ use std::ffi::c_void;
 
 use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
+/// This trait defines the API from the C library.
 pub trait RcuUnsafe {
     /// Performs initialization on the RCU thread.
     ///
@@ -28,7 +29,7 @@ pub trait RcuUnsafe {
     /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
     unsafe fn unchecked_rcu_read_unregister_thread();
 
-    /// Starts an RCU critical section.
+    /// Starts a RCU critical section.
     ///
     /// #### Safety
     ///
@@ -37,7 +38,7 @@ pub trait RcuUnsafe {
     /// * The thread must call [`RcuUnsafe::unchecked_rcu_read_unlock`] later.
     unsafe fn unchecked_rcu_read_lock();
 
-    /// Stops an RCU critical section.
+    /// Stops a RCU critical section.
     ///
     /// #### Safety
     ///
@@ -76,7 +77,7 @@ pub trait RcuUnsafe {
     /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
     /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
     /// * The thread must call [`RcuUnsafe::unchecked_rcu_defer_barrier`] at exit.
-    /// * The thread must not be inside an RCU critical section.
+    /// * The thread must not be inside a RCU critical section.
     /// * The pointers must be valid until the callback is executed.
     unsafe fn unchecked_rcu_defer_call(
         func: Option<unsafe extern "C" fn(head: *mut c_void)>,
@@ -89,7 +90,7 @@ pub trait RcuUnsafe {
     ///
     /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
     /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
-    /// * The thread must not be inside an RCU critical section.
+    /// * The thread must not be inside a RCU critical section.
     unsafe fn unchecked_rcu_defer_barrier();
 
     /// Waits until the RCU grace period is over.
@@ -97,7 +98,7 @@ pub trait RcuUnsafe {
     /// #### Safety
     ///
     /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must not be inside an RCU critical section.
+    /// * The thread must not be inside a RCU critical section.
     unsafe fn unchecked_rcu_synchronize();
 
     /// Creates an [`RcuPollState`] used for checking if the grace period has ended.

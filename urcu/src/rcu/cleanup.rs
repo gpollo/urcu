@@ -13,6 +13,7 @@ use std::thread::JoinHandle;
 
 use super::RcuContext;
 
+/// Defines the cleanup callback signature.
 pub type RcuCleanup<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
 
 enum RcuCleanerCommand<C> {

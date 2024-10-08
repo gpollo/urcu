@@ -11,7 +11,7 @@ use crate::list::reference::Ref;
 use crate::rcu::{DefaultContext, RcuContext};
 use crate::utility::*;
 
-/// Defines an RCU doubly linked list.
+/// Defines a RCU doubly linked list.
 ///
 /// This linked list supports multiple concurrents readers at any time, but only a single
 /// writer at a time. The list uses an internal lock for writing operations.
@@ -37,7 +37,7 @@ use crate::utility::*;
 ///
 /// It is safe to send an `Arc<RcuList<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuList<T>` without calling any RCU primitives since lifetime rules
-/// prevent any other thread from accessing an RCU reference.
+/// prevent any other thread from accessing a RCU reference.
 pub struct RcuList<T, C = DefaultContext> {
     raw: RawList<T>,
     mutex: Mutex<()>,
@@ -46,6 +46,7 @@ pub struct RcuList<T, C = DefaultContext> {
 }
 
 impl<T, C> RcuList<T, C> {
+    /// Creates a new RCU linked list.
     pub fn new() -> Arc<Self>
     where
         C: RcuContext,
@@ -66,10 +67,6 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Returns `true` if the list contains an element equal to the given value.
-    ///
-    /// #### Note
-    ///
-    /// * This operation computes linearly in *O*(*n*) time.
     pub fn contains<'a>(&'a self, x: &'a T, guard: &'a C::Guard<'a>) -> bool
     where
         T: PartialEq,
@@ -96,8 +93,7 @@ impl<T, C> RcuList<T, C> {
     ///
     /// #### Note
     ///
-    /// * This operation computes linearly in *O*(*1*) time.
-    /// * This operation may block.
+    /// This operation may block.
     pub fn push_back(&self, data: T) -> Result<()> {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
@@ -112,8 +108,7 @@ impl<T, C> RcuList<T, C> {
     ///
     /// #### Note
     ///
-    /// * This operation computes linearly in *O*(*1*) time.
-    /// * This operation may block.
+    /// This operation may block.
     pub fn push_front(&self, data: T) -> Result<()> {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
@@ -128,8 +123,7 @@ impl<T, C> RcuList<T, C> {
     ///
     /// #### Note
     ///
-    /// * This operation computes linearly in *O*(*1*) time.
-    /// * This operation may block.
+    /// This operation may block.
     pub fn pop_back(&self) -> Result<Option<Ref<T, C>>>
     where
         T: Send,
@@ -148,8 +142,7 @@ impl<T, C> RcuList<T, C> {
     ///
     /// #### Note
     ///
-    /// * This operation computes linearly in *O*(*1*) time.
-    /// * This operation may block.
+    /// This operation may block.
     pub fn pop_front(&self) -> Result<Option<Ref<T, C>>>
     where
         T: Send,
@@ -174,10 +167,6 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Provides a reference to the back element, or `None` if the list is empty.
-    ///
-    /// #### Note
-    ///
-    /// * This operation computes linearly in *O*(*1*) time.
     pub fn back(&self, _guard: &C::Guard<'_>) -> Option<&T>
     where
         C: RcuContext,
@@ -188,10 +177,6 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Provides a reference to the front element, or `None` if the list is empty.
-    ///
-    /// #### Note
-    ///
-    /// * This operation computes linearly in *O*(*1*) time.
     pub fn front(&self, _guard: &C::Guard<'_>) -> Option<&T>
     where
         C: RcuContext,
@@ -204,10 +189,6 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from back to front.
-    ///
-    /// #### Note
-    ///
-    /// * A writer might concurrently and safely change the nodes during iteration.
     pub fn iter_forward<'a>(&'a self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C, true>
     where
         C: RcuContext,
@@ -219,10 +200,6 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from front to back.
-    ///
-    /// #### Note
-    ///
-    /// * A writer might concurrently and safely change the nodes during iteration.
     pub fn iter_reverse<'a>(&'a self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C, false>
     where
         C: RcuContext,

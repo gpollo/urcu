@@ -9,7 +9,7 @@ use urcu_sys::RcuHead;
 ///
 /// #### Implementation
 ///
-/// Each flavor have an RCU linked list of `(callback, head)` pointers. Each RCU
+/// Each flavor have a RCU linked list of `(callback, head)` pointers. Each RCU
 /// threads can queue callbacks in this list. A helper thread will pop callbacks
 /// and execute them with `callback(head)`.
 ///

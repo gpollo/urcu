@@ -10,7 +10,7 @@ use crate::stack::raw::{RawNode, RawStack};
 use crate::stack::reference::Ref;
 use crate::utility::*;
 
-/// Defines an RCU wait-free stack.
+/// Defines a RCU wait-free stack.
 ///
 /// This stack supports multiple concurrents readers and writers. It is guaranteed to
 /// never block on a call.
@@ -36,7 +36,7 @@ use crate::utility::*;
 ///
 /// It is safe to send an `Arc<RcuStack<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuStack<T>` without calling any RCU primitives since lifetime rules
-/// prevent any other thread from accessing an RCU reference.
+/// prevent any other thread from accessing a RCU reference.
 pub struct RcuStack<T, C = DefaultContext> {
     raw: RawStack<T>,
     _unsend: PhantomUnsend<(T, C)>,
@@ -98,10 +98,6 @@ where
     /// Returns an iterator over the stack.
     ///
     /// The iterator yields all items from top to bottom.
-    ///
-    /// #### Note
-    ///
-    /// * A writer might concurrently and safely change the nodes during iteration.
     pub fn iter<'a>(&self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C> {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { self.raw.iter() }, guard)

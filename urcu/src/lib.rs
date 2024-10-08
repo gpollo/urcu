@@ -1,4 +1,5 @@
 #![feature(ptr_as_ref_unchecked)]
+#![doc = include_str!("../../README.md")]
 
 mod rcu;
 mod utility;

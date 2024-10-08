@@ -10,7 +10,7 @@ use crate::hashmap::reference::Ref;
 use crate::rcu::RcuContext;
 use crate::{DefaultContext, RcuRef};
 
-/// Defines an RCU lock-free hashmap.
+/// Defines a RCU lock-free hashmap.
 ///
 /// This hashmap supports multiple concurrents readers and writers. It is guaranteed
 /// to never block on a call.

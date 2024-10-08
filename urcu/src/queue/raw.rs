@@ -107,7 +107,7 @@ impl<T, C> RawQueue<T, C> {
 
     /// #### Safety
     ///
-    /// The caller must be inside an RCU critical section.
+    /// The caller must be inside a RCU critical section.
     pub unsafe fn enqueue(&self, node: Box<RawNode<T>>) {
         let handle = &self.handle as *const Queue as *mut Queue;
 
@@ -117,9 +117,9 @@ impl<T, C> RawQueue<T, C> {
 
     // #### Safety
     //
-    // The caller must be inside an RCU critical section.
+    // The caller must be inside a RCU critical section.
     //
-    // The caller must wait an RCU grace period before freeing the node.
+    // The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn dequeue(&self) -> *mut RawNode<T> {
         let handle = &self.handle as *const Queue as *mut Queue;
 
@@ -136,9 +136,9 @@ impl<T, C> RawQueue<T, C> {
 
     // #### Safety
     //
-    // The caller must be inside an RCU critical section.
+    // The caller must be inside a RCU critical section.
     //
-    // The caller must wait an RCU grace period before freeing the nodes.
+    // The caller must wait a RCU grace period before freeing the nodes.
     pub unsafe fn dequeue_all(&self) -> Vec<*mut RawNode<T>> {
         let mut ptrs = Vec::new();
 

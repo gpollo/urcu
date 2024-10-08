@@ -7,7 +7,7 @@ use crate::queue::reference::Ref;
 use crate::rcu::{DefaultContext, RcuContext};
 use crate::utility::*;
 
-/// Defines an RCU wait-free queue.
+/// Defines a RCU wait-free queue.
 ///
 /// This queue supports multiple concurrents readers and writers. It is guaranteed to
 /// never block on a call.
@@ -25,7 +25,7 @@ use crate::utility::*;
 ///
 /// It is safe to send an `Arc<RcuQueue<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuQueue<T>` without calling any RCU primitives since lifetime rules
-/// prevent any other thread from accessing an RCU reference.
+/// prevent any other thread from accessing a RCU reference.
 pub struct RcuQueue<T, C = DefaultContext> {
     raw: RawQueue<T, C>,
     _unsend: PhantomUnsend,

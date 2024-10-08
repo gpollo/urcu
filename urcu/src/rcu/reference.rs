@@ -1,7 +1,7 @@
 use crate::rcu::callback::{RcuCallFn, RcuDeferFn};
 use crate::rcu::RcuContext;
 
-/// This trait defines an RCU reference that can be owned after an RCU grace period.
+/// This trait defines a RCU reference that can be owned after a RCU grace period.
 ///
 /// #### Safety
 ///
@@ -15,7 +15,7 @@ use crate::rcu::RcuContext;
 /// ownership and dropping the underlying value.
 ///
 /// * We cannot call [`RcuContext::rcu_synchronize`] since we can't be sure that
-///   an RCU read lock is currently held or not[^mborrow].
+///   a RCU read lock is currently held or not[^mborrow].
 ///
 /// Because an [`RcuRef`] can be sent to any thread, we cannot guarantee that a
 /// thread executing [`Drop::drop`] is properly registered.
@@ -74,7 +74,7 @@ pub unsafe trait RcuRef<C> {
         C: RcuContext,
     {
         context.rcu_defer(RcuDeferFn::<_, C>::new(move || {
-            // SAFETY: The caller already executed an RCU syncronization.
+            // SAFETY: The caller already executed a RCU syncronization.
             unsafe {
                 self.take_ownership_unchecked();
             }
@@ -94,7 +94,7 @@ pub unsafe trait RcuRef<C> {
         C: RcuContext + 'static,
     {
         context.rcu_call(RcuCallFn::new(move || {
-            // SAFETY: The caller already executed an RCU syncronization.
+            // SAFETY: The caller already executed a RCU syncronization.
             unsafe {
                 self.take_ownership_unchecked();
             }

@@ -97,7 +97,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must have mutual exclusion from other writers.
     ///
-    /// The caller must wait an RCU grace period before freeing the node.
+    /// The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn remove_back(&self) -> *mut RawNode<T> {
         let handle = self.back.next;
 
@@ -114,7 +114,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must have mutual exclusion from other writers.
     ///
-    /// The caller must wait an RCU grace period before freeing the node.
+    /// The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn remove_front(&self) -> *mut RawNode<T> {
         let handle = self.front.prev;
 
@@ -129,7 +129,7 @@ impl<T> RawList<T> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn get_back(&self) -> *const RawNode<T> {
         let handle = self.back.next as *const ListHead;
 
@@ -142,7 +142,7 @@ impl<T> RawList<T> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn get_front(&self) -> *const RawNode<T> {
         let handle = self.front.prev as *const ListHead;
 
@@ -168,7 +168,7 @@ pub struct RawIter<T, const FORWARD: bool> {
 impl<T> RawIter<T, true> {
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn from_back(list: &RawList<T>) -> Self {
         Self {
             current: crate::rcu_dereference(list.back.next),
@@ -182,7 +182,7 @@ impl<T> RawIter<T, true> {
 impl<T> RawIter<T, false> {
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn from_front(list: &RawList<T>) -> Self {
         Self {
             current: crate::rcu_dereference(list.front.prev),
@@ -196,7 +196,7 @@ impl<T> RawIter<T, false> {
 impl<T, const FORWARD: bool> RawIter<T, FORWARD> {
     /// #### Safety
     ///
-    /// The caller must be in an RCU critical section.
+    /// The caller must be in a RCU critical section.
     pub unsafe fn next(&mut self) -> *const RawNode<T> {
         if self.current == self.last {
             return std::ptr::null();

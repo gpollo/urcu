@@ -25,8 +25,8 @@ pub trait RcuPoller {
 /// > At any given time, you can have either one mutable reference (`&mut T`) or
 /// > any number of immutable references (`&T`).
 ///
-/// By exploiting this rule, we can enforce that a thread never executes an RCU
-/// synchronization barrier at the same time as it holds an RCU read lock. For
+/// By exploiting this rule, we can enforce that a thread never executes a RCU
+/// synchronization barrier at the same time as it holds a RCU read lock. For
 /// example, [`RcuContext::rcu_read_lock`] requires (`&self`), meaning we can
 /// nest as many read locks as we want. On the other hand, [`RcuContext::rcu_synchronize`]
 /// requires `&mut self`, meaning we can never call it while a read guard borrows
@@ -35,8 +35,8 @@ pub trait RcuPoller {
 /// #### Safety
 ///
 /// 1. You must enforce single context per thread for a specific RCU flavor.
-///    Failure to do so can lead to a deadlock if a thread acquires an RCU read lock
-///    from one context and tries to do an RCU syncronization from another context.
+///    Failure to do so can lead to a deadlock if a thread acquires a RCU read lock
+///    from one context and tries to do a RCU syncronization from another context.
 /// 2. For callbacks (`rcu_call`), a barrier (`rcu_barrier`) should be executed
 ///    before cleaning up the context. Failure to do so might results in memory
 ///    leaks and object cleanups that don't happen.
@@ -47,7 +47,7 @@ pub unsafe trait RcuContext {
     /// Defines an API for unchecked RCU primitives.
     type Unsafe: RcuUnsafe;
 
-    /// Defines a guard for an RCU critical section.
+    /// Defines a guard for a RCU critical section.
     type Guard<'a>: 'a
     where
         Self: 'a;
@@ -66,7 +66,7 @@ pub unsafe trait RcuContext {
     where
         Self: Sized;
 
-    /// Starts an RCU critical section.
+    /// Starts a RCU critical section.
     ///
     /// #### Note
     ///
@@ -77,14 +77,14 @@ pub unsafe trait RcuContext {
     ///
     /// #### Note
     ///
-    /// It cannot be called in an RCU critical section.
+    /// It cannot be called in a RCU critical section.
     fn rcu_synchronize(&mut self);
 
-    /// Creates an RCU grace period poller.
+    /// Creates a RCU grace period poller.
     ///
     /// #### Note
     ///
-    /// It may be called in an RCU critical section.
+    /// It may be called in a RCU critical section.
     fn rcu_synchronize_poller(&self) -> Self::Poller<'_>;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
@@ -132,7 +132,7 @@ pub unsafe trait RcuContext {
 
 macro_rules! define_rcu_guard {
     ($flavor:ident, $guard:ident, $unsafe:ident, $context:ident) => {
-        #[doc = concat!("Defines a guard for an RCU critical section (`liburcu-", stringify!($flavor), "`).")]
+        #[doc = concat!("Defines a guard for a RCU critical section (`liburcu-", stringify!($flavor), "`).")]
         #[allow(dead_code)]
         pub struct $guard<'a>(PhantomData<&'a $context>);
 
@@ -187,7 +187,7 @@ macro_rules! define_rcu_poller {
 
 macro_rules! define_rcu_context {
     ($flavor:ident, $context:ident, $unsafe:ident, $guard:ident, $poller:ident) => {
-        #[doc = concat!("Defines an RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
+        #[doc = concat!("Defines a RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
         ///
         /// #### Note
         ///
@@ -411,12 +411,15 @@ pub mod flavor {
     pub use qsbr::*;
 }
 
+/// Defines the default RCU flavor.
 #[cfg(feature = "flavor-memb")]
 pub type DefaultContext = flavor::memb::RcuContextMemb;
 
+/// Defines the default RCU flavor.
 #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
 pub type DefaultContext = flavor::mb::RcuContextMb;
 
+/// Defines the default RCU flavor.
 #[cfg(all(
     not(feature = "flavor-memb"),
     not(feature = "flavor-mb"),
@@ -424,6 +427,7 @@ pub type DefaultContext = flavor::mb::RcuContextMb;
 ))]
 pub type DefaultContext = flavor::bp::RcuContextBp;
 
+/// Defines the default RCU flavor.
 #[cfg(all(
     not(feature = "flavor-memb"),
     not(feature = "flavor-mb"),
@@ -440,7 +444,7 @@ pub type DefaultContext = flavor::qsbr::RcuContextQsbr;
 ///
 /// #### Safety
 ///
-/// * The thread must be inside an RCU critical section.
+/// * The thread must be inside a RCU critical section.
 pub unsafe fn rcu_dereference<T>(pointer: *const T) -> *const T {
     // SAFETY: It is safe to cast the pointer to a void*.
     unsafe { urcu_sys::rcu_dereference(pointer as *mut std::ffi::c_void) as *const T }
@@ -454,7 +458,7 @@ pub unsafe fn rcu_dereference<T>(pointer: *const T) -> *const T {
 ///
 /// #### Safety
 ///
-/// * The thread must be inside an RCU critical section.
+/// * The thread must be inside a RCU critical section.
 pub unsafe fn rcu_dereference_mut<T>(pointer: *mut T) -> *mut T {
     // SAFETY: It is safe to cast the pointer to a void*.
     unsafe { urcu_sys::rcu_dereference(pointer as *mut std::ffi::c_void) as *mut T }

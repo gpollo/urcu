@@ -194,9 +194,9 @@ impl<K, V, C> RawMap<K, V, C> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU read-side critical section.
+    /// The caller must be in a RCU read-side critical section.
     ///
-    /// The caller must wait for an RCU grace period before taking ownership of the old value.
+    /// The caller must wait for a RCU grace period before taking ownership of the old value.
     pub unsafe fn add_replace(&self, key: K, value: V) -> *mut RawNode<K, V>
     where
         K: Eq + Hash,
@@ -224,7 +224,7 @@ impl<K, V, C> RawMap<K, V, C> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU read-side critical section.
+    /// The caller must be in a RCU read-side critical section.
     pub unsafe fn lookup(&self, key: &K) -> RawIter<K, V, C>
     where
         K: Eq + Hash,
@@ -245,7 +245,7 @@ impl<K, V, C> RawMap<K, V, C> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU read-side critical section.
+    /// The caller must be in a RCU read-side critical section.
     pub unsafe fn iter(&self) -> RawIter<K, V, C> {
         RawIter::new(self, |iter| {
             // SAFETY: All pointers are non-null.
@@ -255,9 +255,9 @@ impl<K, V, C> RawMap<K, V, C> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU read-side critical section.
+    /// The caller must be in a RCU read-side critical section.
     ///
-    /// The caller must wait for an RCU grace period before taking ownership of the old value.
+    /// The caller must wait for a RCU grace period before taking ownership of the old value.
     pub unsafe fn del(&self, mut node: NonNull<RawNode<K, V>>) -> *mut RawNode<K, V>
     where
         C: RcuContext,
@@ -275,9 +275,9 @@ impl<K, V, C> RawMap<K, V, C> {
 
     /// #### Safety
     ///
-    /// The caller must be in an RCU read-side critical section.
+    /// The caller must be in a RCU read-side critical section.
     ///
-    /// The caller must wait for an RCU grace period before taking ownership of the old values.
+    /// The caller must wait for a RCU grace period before taking ownership of the old values.
     pub unsafe fn del_all(&self) -> Vec<NonNull<RawNode<K, V>>> {
         let mut iter = self.iter();
         let mut refs = Vec::new();
