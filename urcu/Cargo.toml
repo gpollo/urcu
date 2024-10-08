@@ -18,6 +18,11 @@ urcu-memb-sys = { path = "../urcu-memb-sys", optional = true }
 urcu-qsbr-sys = { path = "../urcu-qsbr-sys", optional = true }
 urcu-sys = { path = "../urcu-sys" }
 
+[dev-dependencies]
+ctrlc = "3"
+env_logger = "0.11"
+rand = "0.8"
+
 [features]
 default = [ "flavor-bp", "flavor-mb", "flavor-memb", "flavor-qsbr" ]
 flavor-bp = ["dep:urcu-bp-sys"]
@@ -32,6 +37,3 @@ static = [
     "urcu-sys/static",
 ]
 
-[dev-dependencies]
-ctrlc = "3"
-env_logger = "0.11"
