@@ -18,7 +18,7 @@ use urcu_sys::RcuHead;
 /// When [`RcuCall::configure`] is called, you must deliberately leak your type
 /// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
 /// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
-/// free up memory. For an example, see [`RcuCallSimple`].
+/// free up memory. For an example, see [`RcuCallFn`].
 ///
 /// Unlike [`RcuDefer`], we resulting pointer must be an [`RcuHead`] inside
 /// your data. You can use [`container_of!`] to get back the type implementing this
@@ -30,13 +30,13 @@ pub unsafe trait RcuCall {
         F: FnOnce(NonNull<RcuHead>, unsafe extern "C" fn(head: *mut RcuHead));
 }
 
-/// Defines a simple callback executed after the next RCU grace period.
-pub struct RcuCallSimple<F> {
+/// Defines a callback executed after the next RCU grace period.
+pub struct RcuCallFn<F> {
     func: F,
     head: RcuHead,
 }
 
-impl<F> RcuCallSimple<F> {
+impl<F> RcuCallFn<F> {
     /// Create a simple RCU callback.
     pub fn new(func: F) -> Box<Self> {
         Box::new(Self {
@@ -59,7 +59,7 @@ impl<F> RcuCallSimple<F> {
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-unsafe impl<F> RcuCall for RcuCallSimple<F>
+unsafe impl<F> RcuCall for RcuCallFn<F>
 where
     F: FnOnce(),
 {
@@ -79,7 +79,7 @@ where
 /// #### Safety
 ///
 /// The callback can be sent to another thread if the reference implements [`Send`].
-unsafe impl<F> Send for RcuCallSimple<F> where F: Send {}
+unsafe impl<F> Send for RcuCallFn<F> where F: Send {}
 
 /// This trait defines a callback to be invoked after the next RCU grace period.
 ///
@@ -94,7 +94,7 @@ unsafe impl<F> Send for RcuCallSimple<F> where F: Send {}
 /// When [`RcuDefer::configure`] is called, you must deliberately leak your type
 /// (e.g. [`Box::into_raw`]) to prevent the memory from being freed. Upon execution
 /// of the callback, you must get back ownership (e.g. [`Box::from_raw`]) and properly
-/// free up memory. For an example, see [`RcuDeferSimple`].
+/// free up memory. For an example, see [`RcuDeferFn`].
 pub unsafe trait RcuDefer {
     /// Configures the callback for execution.
     fn configure<F>(self: Box<Self>, func: F)
@@ -102,8 +102,8 @@ pub unsafe trait RcuDefer {
         F: FnOnce(NonNull<c_void>, unsafe extern "C" fn(head: *mut c_void));
 }
 
-/// Defines a simple defer callback executed after the next RCU grace period.
-pub struct RcuDeferSimple<F, C> {
+/// Defines a defer callback executed after the next RCU grace period.
+pub struct RcuDeferFn<F, C> {
     func: F,
     // Also prevents Send+Sync auto-trait implementations.
     _context: PhantomData<*mut C>,
@@ -112,7 +112,7 @@ pub struct RcuDeferSimple<F, C> {
 /// #### Safety
 ///
 /// The memory of [`Box<Self>`] is properly reclaimed upon the RCU callback.
-impl<F, C> RcuDeferSimple<F, C> {
+impl<F, C> RcuDeferFn<F, C> {
     /// Creates a callback.
     pub fn new(func: F) -> Box<Self> {
         Box::new(Self {
@@ -132,7 +132,7 @@ impl<F, C> RcuDeferSimple<F, C> {
     }
 }
 
-unsafe impl<F, C> RcuDefer for RcuDeferSimple<F, C>
+unsafe impl<F, C> RcuDefer for RcuDeferFn<F, C>
 where
     F: FnOnce(),
 {
