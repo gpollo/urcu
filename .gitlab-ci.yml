@@ -1,0 +1,35 @@
+stages:
+  - tool
+
+#############
+# tool jobs #
+#############
+
+image:rust:
+  stage: tool
+  image:
+    name: quay.io/podman/stable:latest
+    docker:
+      user: podman
+  script:
+    - ./.gitlab/build-image.sh rust
+
+image:urcu-shared:
+  needs: [image:rust]
+  stage: tool
+  image:
+    name: quay.io/podman/stable:latest
+    docker:
+      user: podman
+  script:
+    - ./.gitlab/build-image.sh urcu-shared
+
+image:urcu-static:
+  needs: [image:rust]
+  stage: tool
+  image:
+    name: quay.io/podman/stable:latest
+    docker:
+      user: podman
+  script:
+    - ./.gitlab/build-image.sh urcu-static
