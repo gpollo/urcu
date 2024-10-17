@@ -62,6 +62,18 @@ build:urcu-shared:
     paths:
       - target/
 
+doc:urcu-static:
+  needs: [image:rust]
+  stage: build
+  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  variables:
+    DOCS_RS:
+  script:
+    - time cargo doc --features static
+  artifacts:
+    paths:
+      - target/doc/
+
 ##############
 # check jobs #
 ##############
