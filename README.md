@@ -1,3 +1,7 @@
+[![Latest Version](https://img.shields.io/crates/v/urcu2?logo=rust)](https://crates.io/crates/urcu2)
+[![Latest Documentation](https://img.shields.io/docsrs/urcu2?logo=rust)](https://docs.rs/urcu2/latest/urcu/)
+[![Pipeline Status](https://img.shields.io/gitlab/pipeline-status/gabrielpolloguilbert%2Furcu?branch=master&logo=gitlab)](https://gitlab.com/gabrielpolloguilbert/urcu/-/pipelines/latest)
+
 This crate provides safe Rust API to [`liburcu`][liburcu] for Linux systems.
 
 # Goals
