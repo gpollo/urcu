@@ -66,6 +66,36 @@ build:urcu-shared:
 # check jobs #
 ##############
 
+audit:
+  needs: [image:rust]
+  stage: check
+  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  script:
+    - time cargo audit
+
+format:
+  needs: [image:rust]
+  stage: check
+  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  script:
+    - time cargo fmt --check
+
+lint:urcu-static:
+  needs: [build:urcu-static]
+  stage: check
+  image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - time cargo clippy --release --features static
+
+lint:urcu-shared:
+  needs: [build:urcu-shared]
+  stage: check
+  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+  script:
+    - time cargo clippy --release
+
 test:urcu-static:
   needs: [build:urcu-static]
   stage: check
