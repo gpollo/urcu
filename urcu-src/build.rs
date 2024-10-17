@@ -29,6 +29,11 @@ fn configure_lto(config: &mut autotools::Config) {
 
 #[cfg(feature = "static")]
 fn main() {
+    if std::env::var("DOCS_RS").is_ok() {
+        println!("cargo::rustc-env=BUILD_DIR=");
+        return;
+    }
+
     use std::path::PathBuf;
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());

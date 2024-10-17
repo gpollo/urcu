@@ -18,7 +18,10 @@ impl ParseCallbacks for BindgenCallbacks {
 fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let build_config = urcu_src::build_config();
-    metadeps::probe().unwrap();
+
+    if std::env::var("DOCS_RS").is_err() {
+        metadeps::probe().unwrap();
+    }
 
     build_config.cargo_link("urcu-cds");
     build_config.cargo_link("urcu");

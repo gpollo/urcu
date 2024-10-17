@@ -8,6 +8,9 @@ edition = "2021"
 name = "urcu"
 doctest = false
 
+[package.metadata.docs.rs]
+features = ["static"]
+
 [dependencies]
 anyhow = "1"
 container_of = "0.5"

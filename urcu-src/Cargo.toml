@@ -7,6 +7,9 @@ edition = "2021"
 [lib]
 name = "urcu_src"
 
+[package.metadata.docs.rs]
+features = ["static"]
+
 [dependencies]
 bindgen = { version = "0.69", features = ["experimental"] }
 cc = "1"

@@ -7,6 +7,9 @@ edition = "2021"
 [lib]
 name = "urcu_memb_sys"
 
+[package.metadata.docs.rs]
+features = ["static"]
+
 [package.metadata.pkg-config]
 liburcu-memb = "0.14"
 

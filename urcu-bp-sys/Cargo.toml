@@ -7,6 +7,9 @@ edition = "2021"
 [lib]
 name = "urcu_bp_sys"
 
+[package.metadata.docs.rs]
+features = ["static"]
+
 [package.metadata.pkg-config]
 liburcu-bp = "0.14"
 
