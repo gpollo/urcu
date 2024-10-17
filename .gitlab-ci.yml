@@ -2,6 +2,7 @@ stages:
   - tool
   - build
   - check
+  - release
 
 #############
 # tool jobs #
@@ -133,3 +134,36 @@ test:urcu-shared:
       - target/nextest/ci/junit.xml
     reports:
       junit: target/nextest/ci/junit.xml
+
+################
+# release jobs #
+################
+
+cargo:
+  dependencies: []
+  stage: release
+  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+  manual_confirmation: 'Are you sure you want to publish to crates.io?'
+  script:
+    - ./.gitlab/publish-crates.sh
+
+gitlab:
+  dependencies: []
+  stage: release
+  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+  manual_confirmation: 'Are you sure you want to create a Gitlab release?'
+  script:
+    - ./.gitlab/release-gitlab.sh
+
