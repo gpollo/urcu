@@ -1,10 +1,11 @@
 [package]
-name = "urcu"
+name = "urcu2"
 license = "GPL-3.0-or-later"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
+name = "urcu"
 doctest = false
 
 [dependencies]
@@ -15,11 +16,11 @@ libc = "0.2"
 log = "0.4"
 paste = "1"
 static_assertions = "1"
-urcu-bp-sys = { path = "../urcu-bp-sys", optional = true }
-urcu-mb-sys = { path = "../urcu-mb-sys", optional = true }
-urcu-memb-sys = { path = "../urcu-memb-sys", optional = true }
-urcu-qsbr-sys = { path = "../urcu-qsbr-sys", optional = true }
-urcu-sys = { path = "../urcu-sys" }
+urcu2-bp-sys = { path = "../urcu-bp-sys", optional = true }
+urcu2-mb-sys = { path = "../urcu-mb-sys", optional = true }
+urcu2-memb-sys = { path = "../urcu-memb-sys", optional = true }
+urcu2-qsbr-sys = { path = "../urcu-qsbr-sys", optional = true }
+urcu2-sys = { path = "../urcu-sys" }
 
 [dev-dependencies]
 ctrlc = "3"
@@ -28,15 +29,15 @@ rand = "0.8"
 
 [features]
 default = [ "flavor-bp", "flavor-mb", "flavor-memb", "flavor-qsbr" ]
-flavor-bp = ["dep:urcu-bp-sys"]
-flavor-mb = ["dep:urcu-mb-sys"]
-flavor-memb = ["dep:urcu-memb-sys"]
-flavor-qsbr = ["dep:urcu-qsbr-sys"]
+flavor-bp = ["dep:urcu2-bp-sys"]
+flavor-mb = ["dep:urcu2-mb-sys"]
+flavor-memb = ["dep:urcu2-memb-sys"]
+flavor-qsbr = ["dep:urcu2-qsbr-sys"]
 static = [
-    "urcu-bp-sys/static",
-    "urcu-mb-sys/static",
-    "urcu-memb-sys/static",
-    "urcu-qsbr-sys/static",
-    "urcu-sys/static",
+    "urcu2-bp-sys/static",
+    "urcu2-mb-sys/static",
+    "urcu2-memb-sys/static",
+    "urcu2-qsbr-sys/static",
+    "urcu2-sys/static",
 ]
 

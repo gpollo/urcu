@@ -1,21 +1,24 @@
 [package]
-name = "urcu-qsbr-sys"
+name = "urcu2-qsbr-sys"
 license = "GPL-3.0-or-later"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "urcu_qsbr_sys"
 
 [package.metadata.pkg-config]
 liburcu-qsbr = "0.14"
 
 [dependencies]
-urcu-sys = { path = "../urcu-sys" }
+urcu2-sys = { path = "../urcu-sys" }
 
 [build-dependencies]
 bindgen = "0.69"
 metadeps = "1"
-urcu-src = { path = "../urcu-src" }
+urcu2-src = { path = "../urcu-src" }
 
 [features]
 default = []
 debug = []
-static = ["urcu-src/static"]
+static = ["urcu2-src/static"]

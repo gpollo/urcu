@@ -1,8 +1,11 @@
 [package]
-name = "urcu-sys"
+name = "urcu2-sys"
 license = "GPL-3.0-or-later"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "urcu_sys"
 
 [package.metadata.pkg-config]
 liburcu = "0.14"
@@ -12,8 +15,8 @@ liburcu-cds = "0.14"
 bindgen = { version = "0.69", features = ["experimental"] }
 cc = "1"
 metadeps = "1"
-urcu-src = { path = "../urcu-src" }
+urcu2-src = { path = "../urcu-src" }
 
 [features]
 default = []
-static = ["urcu-src/static"]
+static = ["urcu2-src/static"]

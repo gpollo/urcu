@@ -560,7 +560,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
 
 [[package]]
-name = "urcu"
+name = "urcu2"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -573,55 +573,55 @@ dependencies = [
  "paste",
  "rand",
  "static_assertions",
- "urcu-bp-sys",
- "urcu-mb-sys",
- "urcu-memb-sys",
- "urcu-qsbr-sys",
- "urcu-sys",
+ "urcu2-bp-sys",
+ "urcu2-mb-sys",
+ "urcu2-memb-sys",
+ "urcu2-qsbr-sys",
+ "urcu2-sys",
 ]
 
 [[package]]
-name = "urcu-bp-sys"
+name = "urcu2-bp-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
  "metadeps",
- "urcu-src",
- "urcu-sys",
+ "urcu2-src",
+ "urcu2-sys",
 ]
 
 [[package]]
-name = "urcu-mb-sys"
+name = "urcu2-mb-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
  "metadeps",
- "urcu-src",
- "urcu-sys",
+ "urcu2-src",
+ "urcu2-sys",
 ]
 
 [[package]]
-name = "urcu-memb-sys"
+name = "urcu2-memb-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
  "metadeps",
- "urcu-src",
- "urcu-sys",
+ "urcu2-src",
+ "urcu2-sys",
 ]
 
 [[package]]
-name = "urcu-qsbr-sys"
+name = "urcu2-qsbr-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
  "metadeps",
- "urcu-src",
- "urcu-sys",
+ "urcu2-src",
+ "urcu2-sys",
 ]
 
 [[package]]
-name = "urcu-src"
+name = "urcu2-src"
 version = "0.1.0+0.14.1"
 dependencies = [
  "autotools",
@@ -630,13 +630,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "urcu-sys"
+name = "urcu2-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
  "cc",
  "metadeps",
- "urcu-src",
+ "urcu2-src",
 ]
 
 [[package]]

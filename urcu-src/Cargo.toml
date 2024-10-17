@@ -1,8 +1,11 @@
 [package]
-name = "urcu-src"
+name = "urcu2-src"
 license = "GPL-3.0-or-later"
 version = "0.1.0+0.14.1"
 edition = "2021"
+
+[lib]
+name = "urcu_src"
 
 [dependencies]
 bindgen = { version = "0.69", features = ["experimental"] }
