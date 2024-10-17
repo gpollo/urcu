@@ -1,7 +1,8 @@
 [package]
 name = "urcu2-src"
-license = "GPL-3.0-or-later"
-version = "0.1.0+0.14.1"
+description = "Redistribution of liburcu as a crate"
+license = "LGPL-2.1-only"
+version = "0.1.4+0.14.1"
 edition = "2021"
 
 [lib]
