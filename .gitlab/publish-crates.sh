@@ -62,4 +62,5 @@ crate_publish ../urcu-mb-sys
 crate_publish ../urcu-memb-sys
 crate_publish ../urcu-qsbr-sys
 cp ../README.md ../urcu/README.md
-crate_publish ../urcu
+sed -i 's#../../README.md#../README.md#g' ../urcu/src/lib.rs
+crate_publish ../urcu --allow-dirty
