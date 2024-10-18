@@ -6,29 +6,30 @@ use crate::rcu::RcuContext;
 /// An iterator over the nodes of an [`RcuList`].
 ///
 /// [`RcuList`]: crate::list::container::RcuList
-pub struct Iter<'a, T, C, const FORWARD: bool>
+pub struct Iter<'ctx, 'guard, T, C, const FORWARD: bool>
 where
-    C: RcuContext + 'a,
+    C: RcuContext + 'ctx,
 {
     raw: RawIter<T, FORWARD>,
-    _guard: &'a C::Guard<'a>,
+    #[allow(dead_code)]
+    guard: &'guard C::Guard<'ctx>,
 }
 
-impl<'a, T, C, const FORWARD: bool> Iter<'a, T, C, FORWARD>
+impl<'ctx, 'guard, T, C, const FORWARD: bool> Iter<'ctx, 'guard, T, C, FORWARD>
 where
-    C: RcuContext + 'a,
+    C: RcuContext + 'ctx,
 {
-    pub(crate) fn new(raw: RawIter<T, FORWARD>, guard: &'a C::Guard<'a>) -> Self {
-        Self { raw, _guard: guard }
+    pub(crate) fn new(raw: RawIter<T, FORWARD>, guard: &'guard C::Guard<'ctx>) -> Self {
+        Self { raw, guard }
     }
 }
 
-impl<'a, T, C, const FORWARD: bool> Iterator for Iter<'a, T, C, FORWARD>
+impl<'ctx, 'guard, T, C, const FORWARD: bool> Iterator for Iter<'ctx, 'guard, T, C, FORWARD>
 where
-    Self: 'a,
-    C: RcuContext,
+    Self: 'guard,
+    C: RcuContext + 'ctx,
 {
-    type Item = &'a T;
+    type Item = &'guard T;
 
     fn next(&mut self) -> Option<Self::Item> {
         // SAFETY: The RCU critical section is enforced.

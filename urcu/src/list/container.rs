@@ -67,7 +67,7 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Returns `true` if the list contains an element equal to the given value.
-    pub fn contains<'a>(&'a self, x: &'a T, guard: &'a C::Guard<'a>) -> bool
+    pub fn contains(&self, x: &T, guard: &C::Guard<'_>) -> bool
     where
         T: PartialEq,
         C: RcuContext,
@@ -167,20 +167,26 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Provides a reference to the back element, or `None` if the list is empty.
-    pub fn back(&self, _guard: &C::Guard<'_>) -> Option<&T>
+    pub fn back<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
     where
+        'me: 'guard,
         C: RcuContext,
     {
+        let _ = guard;
+
         // SAFETY: The RCU critical section is enforced.
         // SAFETY: The node pointer can be converted to a reference.
         unsafe { self.raw.get_back().as_ref() }.map(|r| r.deref())
     }
 
     /// Provides a reference to the front element, or `None` if the list is empty.
-    pub fn front(&self, _guard: &C::Guard<'_>) -> Option<&T>
+    pub fn front<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
     where
+        'me: 'guard,
         C: RcuContext,
     {
+        let _ = guard;
+
         // SAFETY: The RCU critical section is enforced.
         // SAFETY: The node pointer can be converted to a reference.
         unsafe { self.raw.get_front().as_ref() }.map(|r| r.deref())
@@ -189,8 +195,12 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from back to front.
-    pub fn iter_forward<'a>(&'a self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C, true>
+    pub fn iter_forward<'me, 'ctx, 'guard>(
+        &'me self,
+        guard: &'guard C::Guard<'ctx>,
+    ) -> Iter<'ctx, 'guard, T, C, true>
     where
+        'me: 'guard,
         C: RcuContext,
     {
         // SAFETY: The RCU critical section is enforced.
@@ -200,8 +210,12 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from front to back.
-    pub fn iter_reverse<'a>(&'a self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C, false>
+    pub fn iter_reverse<'me, 'ctx, 'guard>(
+        &'me self,
+        guard: &'guard C::Guard<'ctx>,
+    ) -> Iter<'ctx, 'guard, T, C, false>
     where
+        'me: 'guard,
         C: RcuContext,
     {
         // SAFETY: The RCU critical section is enforced.
