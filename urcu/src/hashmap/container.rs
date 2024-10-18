@@ -134,14 +134,14 @@ where
             let guard = context.rcu_read_lock();
 
             // SAFETY: The read-side RCU lock is taken.
-            let refs = unsafe { raw.del_all() }
+            unsafe { raw.del_all() }
                 .iter()
                 .copied()
                 .map(Ref::<K, V, C>::new)
-                .collect::<Vec<_>>();
+                .collect::<Vec<_>>()
+                .call_cleanup(context);
 
             drop(guard);
-            drop(refs.take_ownership(context));
 
             // SAFETY: The read-side RCU lock is not taken.
             // SAFETY: We are a registered RCU read-side thread.

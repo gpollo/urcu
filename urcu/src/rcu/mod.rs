@@ -127,6 +127,7 @@ pub unsafe trait RcuContext {
     /// #### Note
     ///
     /// The callback must be [`Send`] because it will be executed by an helper thread.
+    // TODO: To prevent deadlock, we should not give a mutable context.
     fn rcu_cleanup_and_block(callback: RcuCleanup<Self>);
 }
 
