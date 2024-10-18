@@ -3,19 +3,19 @@ use crate::hashmap::raw::RawIter;
 /// An iterator over the nodes of an [`RcuHashMap`].
 ///
 /// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
-pub struct Iter<'a, K, V, C>(RawIter<'a, K, V, C>)
+pub struct Iter<'guard, K, V, C>(RawIter<'guard, K, V, C>)
 where
-    K: 'a,
-    V: 'a;
+    K: 'guard,
+    V: 'guard;
 
-impl<'a, K, V, C> Iter<'a, K, V, C> {
-    pub fn new(raw: RawIter<'a, K, V, C>) -> Self {
+impl<'guard, K, V, C> Iter<'guard, K, V, C> {
+    pub fn new(raw: RawIter<'guard, K, V, C>) -> Self {
         Self(raw)
     }
 }
 
-impl<'a, K, V, C> Iterator for Iter<'a, K, V, C> {
-    type Item = (&'a K, &'a V);
+impl<'guard, K, V, C> Iterator for Iter<'guard, K, V, C> {
+    type Item = (&'guard K, &'guard V);
 
     fn next(&mut self) -> Option<Self::Item> {
         // SAFETY: The node pointer is convertible to a reference is non-null.

@@ -79,8 +79,13 @@ where
     }
 
     /// Returns a reference to the value corresponding to the key.
-    pub fn get(&self, key: &K, _guard: &C::Guard<'_>) -> Option<&V>
+    pub fn get<'me, 'ctx, 'guard>(
+        &'me self,
+        key: &K,
+        _guard: &'guard C::Guard<'ctx>,
+    ) -> Option<&'guard V>
     where
+        'me: 'guard,
         K: Eq + Hash,
     {
         // SAFETY: The RCU read-side lock is taken.
@@ -113,7 +118,13 @@ where
     }
 
     /// Returns an iterator visiting all key-value pairs in arbitrary order.
-    pub fn iter(&self, _guard: &C::Guard<'_>) -> Iter<'_, K, V, C> {
+    pub fn iter<'me, 'ctx, 'guard>(
+        &'me self,
+        _guard: &'guard C::Guard<'ctx>,
+    ) -> Iter<'guard, K, V, C>
+    where
+        'me: 'guard,
+    {
         Iter::new(
             // SAFETY: The read-side RCU lock is taken.
             unsafe { self.0.iter() },

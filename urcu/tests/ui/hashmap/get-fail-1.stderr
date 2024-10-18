@@ -1,0 +1,11 @@
+error[E0505]: cannot move out of `guard` because it is borrowed
+  --> tests/ui/hashmap/get-fail-1.rs:9:10
+   |
+7  |     let guard = context.rcu_read_lock();
+   |         ----- binding `guard` declared here
+8  |     let value = map.get(&0, &guard);
+   |                             ------ borrow of `guard` occurs here
+9  |     drop(guard);
+   |          ^^^^^ move out of `guard` occurs here
+10 |     println!("{:?}", value);
+   |                      ----- borrow later used here

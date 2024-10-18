@@ -1,4 +1,19 @@
 #[test]
+fn hashmap_lifetime() {
+    let tests = trybuild::TestCases::new();
+
+    tests.pass("tests/ui/hashmap/get-ok-0.rs");
+    tests.pass("tests/ui/hashmap/get-ok-1.rs");
+    tests.compile_fail("tests/ui/hashmap/get-fail-0.rs");
+    tests.compile_fail("tests/ui/hashmap/get-fail-1.rs");
+
+    tests.pass("tests/ui/hashmap/iter-ok-0.rs");
+    tests.pass("tests/ui/hashmap/iter-ok-1.rs");
+    tests.compile_fail("tests/ui/hashmap/iter-fail-0.rs");
+    tests.compile_fail("tests/ui/hashmap/iter-fail-1.rs");
+}
+
+#[test]
 fn list_lifetime() {
     let tests = trybuild::TestCases::new();
 

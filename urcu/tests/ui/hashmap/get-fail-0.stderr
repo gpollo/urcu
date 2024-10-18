@@ -1,0 +1,12 @@
+error[E0505]: cannot move out of `map` because it is borrowed
+  --> tests/ui/hashmap/get-fail-0.rs:9:10
+   |
+6  |     let map = RcuHashMap::<u32, u32>::new().unwrap();
+   |         --- binding `map` declared here
+7  |     let guard = context.rcu_read_lock();
+8  |     let value = map.get(&0, &guard);
+   |                 --- borrow of `map` occurs here
+9  |     drop(map);
+   |          ^^^ move out of `map` occurs here
+10 |     println!("{:?}", value);
+   |                      ----- borrow later used here
