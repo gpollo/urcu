@@ -14,10 +14,14 @@ use std::thread::JoinHandle;
 use super::RcuContext;
 
 /// Defines the cleanup callback signature.
-pub type RcuCleanup<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
+pub type RcuCleanup<C> = Box<dyn FnOnce(&C) + Send + 'static>;
+
+/// Defines the cleanup callback signature.
+pub type RcuCleanupMut<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
 
 enum RcuCleanerCommand<C> {
     Execute(RcuCleanup<C>),
+    ExecuteMut(RcuCleanupMut<C>),
     Shutdown,
 }
 
@@ -38,7 +42,8 @@ where
 
         loop {
             match self.commands.recv() {
-                Ok(RcuCleanerCommand::Execute(callback)) => callback(&mut context),
+                Ok(RcuCleanerCommand::Execute(callback)) => callback(&context),
+                Ok(RcuCleanerCommand::ExecuteMut(callback)) => callback(&mut context),
                 Ok(RcuCleanerCommand::Shutdown) | Err(_) => {
                     println!("shutting down RCU cleanup thread");
                     break;
@@ -113,6 +118,16 @@ impl<C> RcuCleanupSender<C> {
         }
     }
 
+    pub fn send_mut(&self, callback: RcuCleanupMut<C>) {
+        if self
+            .callbacks
+            .send(RcuCleanerCommand::ExecuteMut(callback))
+            .is_err()
+        {
+            log::error!("failed to send cleanup execute command");
+        }
+    }
+
     pub fn remove(&self) {
         // The last thread doing this will join the cleanup thread.
         self.thread.set(None);
@@ -128,10 +143,10 @@ macro_rules! impl_cleanup_for_context {
                 static CLEANUP_SENDER: OnceCell<RcuCleanupSender<$context>> = OnceCell::new();
             }
 
-            pub(crate) fn cleanup_send(callback: RcuCleanup<Self>) {
+            pub(crate) fn cleanup_send(callback: RcuCleanupMut<Self>) {
                 Self::CLEANUP_SENDER.with(|cell| {
                     cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
-                        .send(callback);
+                        .send_mut(callback);
                 });
             }
 
