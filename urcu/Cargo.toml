@@ -30,6 +30,7 @@ urcu2-sys = { version = "0.1.6", path = "../urcu-sys" }
 ctrlc = "3"
 env_logger = "0.11"
 rand = "0.8"
+trybuild = "1"
 
 [features]
 default = [ "flavor-bp", "flavor-mb", "flavor-memb", "flavor-qsbr" ]
