@@ -1,0 +1,12 @@
+error[E0505]: cannot move out of `stack` because it is borrowed
+  --> tests/ui/stack/iter-fail-0.rs:9:10
+   |
+6  |     let stack = RcuStack::<u32>::new();
+   |         ----- binding `stack` declared here
+7  |     let guard = context.rcu_read_lock();
+8  |     let mut iter = stack.iter(&guard);
+   |                    ----- borrow of `stack` occurs here
+9  |     drop(stack);
+   |          ^^^^^ move out of `stack` occurs here
+10 |     println!("{:?}", iter.next());
+   |                      ---- borrow later used here

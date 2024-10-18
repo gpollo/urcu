@@ -62,20 +62,20 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, '_, NotSendNotSync, DefaultContext>: Send);
+        assert_not_impl_all!(Iter<'_, '_, NotSendNotSync, DefaultContext>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, SendButNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, '_, SendButNotSync, DefaultContext>: Send);
+        assert_not_impl_all!(Iter<'_, '_, SendButNotSync, DefaultContext>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, NotSendButSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, '_, NotSendButSync, DefaultContext>: Send);
+        assert_not_impl_all!(Iter<'_, '_, NotSendButSync, DefaultContext>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, SendAndSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, '_, SendAndSync, DefaultContext>: Send);
+        assert_not_impl_all!(Iter<'_, '_, SendAndSync, DefaultContext>: Sync);
     }
 
     mod rcu_list_iter_ref {

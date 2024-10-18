@@ -10,21 +10,21 @@ use crate::utility::*;
 /// An iterator over the nodes of an [`RcuStack`].
 ///
 /// [`RcuStack`]: crate::stack::container::RcuStack
-pub struct Iter<'a, T, C>
+pub struct Iter<'ctx, 'guard, T, C>
 where
-    C: RcuContext + 'a,
+    C: RcuContext + 'ctx,
 {
     raw: RawIter<T>,
-    _guard: &'a C::Guard<'a>,
+    _guard: &'guard C::Guard<'ctx>,
     _unsend: PhantomUnsend,
     _unsync: PhantomUnsync,
 }
 
-impl<'a, T, C> Iter<'a, T, C>
+impl<'ctx, 'guard, T, C> Iter<'ctx, 'guard, T, C>
 where
-    C: RcuContext + 'a,
+    C: RcuContext + 'ctx,
 {
-    pub(crate) fn new(raw: RawIter<T>, guard: &'a C::Guard<'a>) -> Self {
+    pub(crate) fn new(raw: RawIter<T>, guard: &'guard C::Guard<'ctx>) -> Self {
         Self {
             raw,
             _guard: guard,
@@ -34,12 +34,12 @@ where
     }
 }
 
-impl<'a, T, C> Iterator for Iter<'a, T, C>
+impl<'guard, T, C> Iterator for Iter<'_, 'guard, T, C>
 where
-    Self: 'a,
+    Self: 'guard,
     C: RcuContext,
 {
-    type Item = &'a T;
+    type Item = &'guard T;
 
     fn next(&mut self) -> Option<Self::Item> {
         // SAFETY: The RCU critical section is enforced.

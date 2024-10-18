@@ -22,3 +22,18 @@ fn list_lifetime() {
     tests.compile_fail("tests/ui/list/iter-reverse-fail-0.rs");
     tests.compile_fail("tests/ui/list/iter-reverse-fail-1.rs");
 }
+
+#[test]
+fn stack_lifetime() {
+    let tests = trybuild::TestCases::new();
+
+    tests.pass("tests/ui/stack/peek-ok-0.rs");
+    tests.pass("tests/ui/stack/peek-ok-1.rs");
+    tests.compile_fail("tests/ui/stack/peek-fail-0.rs");
+    tests.compile_fail("tests/ui/stack/peek-fail-1.rs");
+
+    tests.pass("tests/ui/stack/iter-ok-0.rs");
+    tests.pass("tests/ui/stack/iter-ok-1.rs");
+    tests.compile_fail("tests/ui/stack/iter-fail-0.rs");
+    tests.compile_fail("tests/ui/stack/iter-fail-1.rs");
+}

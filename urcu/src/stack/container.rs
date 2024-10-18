@@ -65,10 +65,12 @@ where
     }
 
     /// Removes an element from the top of the stack.
-    pub fn pop(&self, _guard: &C::Guard<'_>) -> Option<Ref<T, C>>
+    pub fn pop(&self, guard: &C::Guard<'_>) -> Option<Ref<T, C>>
     where
         T: Send,
     {
+        let _ = guard;
+
         // SAFETY: The RCU critical section is enforced.
         // SAFETY: RCU grace period is enforced.
         let node = unsafe { self.raw.pop() };
@@ -87,7 +89,10 @@ where
     }
 
     /// Returns a reference to the element on top of the stack.
-    pub fn peek<'a>(&self, _guard: &'a C::Guard<'_>) -> Option<&'a T> {
+    pub fn peek<'me, 'ctx, 'guard>(&'me self, _guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
+    where
+        'me: 'guard,
+    {
         // SAFETY: The RCU critical section is enforced.
         let node = unsafe { self.raw.head() };
 
@@ -98,7 +103,13 @@ where
     /// Returns an iterator over the stack.
     ///
     /// The iterator yields all items from top to bottom.
-    pub fn iter<'a>(&self, guard: &'a C::Guard<'a>) -> Iter<'a, T, C> {
+    pub fn iter<'me, 'ctx, 'guard>(
+        &'me self,
+        guard: &'guard C::Guard<'ctx>,
+    ) -> Iter<'ctx, 'guard, T, C>
+    where
+        'me: 'guard,
+    {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { self.raw.iter() }, guard)
     }
