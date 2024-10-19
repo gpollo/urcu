@@ -7,6 +7,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let mut iter = map.iter(&guard);
     drop(map);
-    println!("{:?}", iter.next());
+    log::info!("{:?}", iter.next());
     drop(guard);
 }

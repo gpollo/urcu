@@ -8,7 +8,7 @@ fn main() {
     let list = RcuList::<u32, RcuContextMemb>::new();
     let guard = context.rcu_read_lock();
     let front = list.front(&guard);
-    println!("{:?}", front);
+    log::info!("{:?}", front);
     drop(list);
     drop(guard);
 }

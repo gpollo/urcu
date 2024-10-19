@@ -6,7 +6,7 @@ fn main() {
     let map = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
     let value = map.get(&0, &guard);
-    println!("{:?}", value);
+    log::info!("{:?}", value);
     drop(guard);
     drop(map);
 }

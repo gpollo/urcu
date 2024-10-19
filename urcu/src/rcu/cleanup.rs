@@ -45,7 +45,7 @@ where
                 Ok(RcuCleanerCommand::Execute(callback)) => callback(&context),
                 Ok(RcuCleanerCommand::ExecuteMut(callback)) => callback(&mut context),
                 Ok(RcuCleanerCommand::Shutdown) | Err(_) => {
-                    println!("shutting down RCU cleanup thread");
+                    log::debug!("shutting down RCU cleanup thread");
                     break;
                 }
             }

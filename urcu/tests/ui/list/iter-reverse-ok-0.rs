@@ -8,7 +8,7 @@ fn main() {
     let list = RcuList::<u32, RcuContextMemb>::new();
     let guard = context.rcu_read_lock();
     let mut iter = list.iter_reverse(&guard);
-    println!("{:?}", iter.next());
+    log::info!("{:?}", iter.next());
     drop(list);
     drop(guard);
 }

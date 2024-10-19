@@ -9,6 +9,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let mut iter = list.iter_forward(&guard);
     drop(list);
-    println!("{:?}", iter.next());
+    log::info!("{:?}", iter.next());
     drop(guard);
 }

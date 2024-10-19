@@ -7,6 +7,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let value = map.get(&0, &guard);
     drop(map);
-    println!("{:?}", value);
+    log::info!("{:?}", value);
     drop(guard);
 }

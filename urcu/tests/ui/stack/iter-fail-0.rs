@@ -7,6 +7,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let mut iter = stack.iter(&guard);
     drop(stack);
-    println!("{:?}", iter.next());
+    log::info!("{:?}", iter.next());
     drop(guard);
 }

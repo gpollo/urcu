@@ -8,5 +8,5 @@ error[E0505]: cannot move out of `boxed` because it is borrowed
    |                 ----- borrow of `boxed` occurs here
 9  |     drop(boxed);
    |          ^^^^^ move out of `boxed` occurs here
-10 |     println!("{:?}", value);
-   |                      ----- borrow later used here
+10 |     log::info!("{:?}", value);
+   |                        ----- borrow later used here

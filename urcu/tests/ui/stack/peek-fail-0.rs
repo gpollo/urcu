@@ -7,6 +7,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let peek = stack.peek(&guard);
     drop(stack);
-    println!("{:?}", peek);
+    log::info!("{:?}", peek);
     drop(guard);
 }

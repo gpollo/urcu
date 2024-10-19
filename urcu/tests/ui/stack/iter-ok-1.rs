@@ -6,7 +6,7 @@ fn main() {
     let stack = RcuStack::<u32>::new();
     let guard = context.rcu_read_lock();
     let mut iter = stack.iter(&guard);
-    println!("{:?}", iter.next());
+    log::info!("{:?}", iter.next());
     drop(guard);
     drop(stack);
 }

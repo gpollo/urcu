@@ -6,7 +6,7 @@ fn main() {
     let boxed = RcuBox::<u32>::new(0);
     let guard = context.rcu_read_lock();
     let value = boxed.get(&guard);
-    println!("{:?}", value);
+    log::info!("{:?}", value);
     drop(guard);
     drop(boxed);
 }

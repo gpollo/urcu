@@ -8,5 +8,5 @@ error[E0505]: cannot move out of `stack` because it is borrowed
    |                    ----- borrow of `stack` occurs here
 9  |     drop(stack);
    |          ^^^^^ move out of `stack` occurs here
-10 |     println!("{:?}", iter.next());
-   |                      ---- borrow later used here
+10 |     log::info!("{:?}", iter.next());
+   |                        ---- borrow later used here

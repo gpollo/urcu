@@ -9,6 +9,6 @@ fn main() {
     let guard = context.rcu_read_lock();
     let front = list.front(&guard);
     drop(list);
-    println!("{:?}", front);
+    log::info!("{:?}", front);
     drop(guard);
 }
