@@ -42,8 +42,9 @@ impl<T, C> RcuBox<T, C> {
     }
 
     /// Returns a immutable reference to the data.
-    pub fn as_ref<'a>(&'a self, guard: &'a C::Guard<'a>) -> &'a T
+    pub fn get<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> &'guard T
     where
+        'me: 'guard,
         C: RcuContext,
     {
         let _ = guard;

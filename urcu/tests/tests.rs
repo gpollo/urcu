@@ -1,4 +1,14 @@
 #[test]
+fn boxed_lifetime() {
+    let tests = trybuild::TestCases::new();
+
+    tests.pass("tests/ui/boxed/get-ok-0.rs");
+    tests.pass("tests/ui/boxed/get-ok-1.rs");
+    tests.compile_fail("tests/ui/boxed/get-fail-0.rs");
+    tests.compile_fail("tests/ui/boxed/get-fail-1.rs");
+}
+
+#[test]
 fn hashmap_lifetime() {
     let tests = trybuild::TestCases::new();
 
