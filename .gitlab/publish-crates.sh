@@ -56,6 +56,7 @@ cd "$(dirname "$0")" || exit 1
 
 cargo_login
 crate_publish ../urcu-src
+crate_publish ../urcu-common-sys
 crate_publish ../urcu-sys
 crate_publish ../urcu-bp-sys
 crate_publish ../urcu-mb-sys

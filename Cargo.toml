@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "urcu-bp-sys",
+    "urcu-common-sys",
     "urcu-mb-sys",
     "urcu-memb-sys",
     "urcu-qsbr-sys",

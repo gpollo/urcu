@@ -724,6 +724,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "urcu2-common-sys"
+version = "0.1.0-pre"
+dependencies = [
+ "bindgen",
+ "libc",
+ "urcu2-src",
+]
+
+[[package]]
 name = "urcu2-mb-sys"
 version = "0.1.2"
 dependencies = [

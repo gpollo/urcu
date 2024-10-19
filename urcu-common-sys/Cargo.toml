@@ -1,0 +1,23 @@
+[package]
+name = "urcu2-common-sys"
+description = "Bindings to liburcu-common"
+license = "GPL-3.0-or-later"
+version = "0.1.0-pre"
+edition = "2021"
+
+[lib]
+name = "urcu_common_sys"
+
+[package.metadata.docs.rs]
+features = ["static"]
+
+[dependencies]
+libc = { version = "0.2", features = ["extra_traits"] }
+
+[build-dependencies]
+bindgen = { version = "0.69", features = ["experimental"] }
+urcu2-src = { version = "0.1.3", path = "../urcu-src"  }
+
+[features]
+default = []
+static = ["urcu2-src/static"]

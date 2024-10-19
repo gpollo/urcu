@@ -39,15 +39,16 @@ function gitlab_release_name() {
 function gitlab_release_description() {
     echo "This release contains the following crates."
     echo ""
-    echo "| Crate                           | Version                            |"
-    echo "|:--------------------------------|:-----------------------------------|"
-    echo "| \`$(crate_name urcu)\`          | \`$(crate_version urcu)\`          |"
-    echo "| \`$(crate_name urcu-bp-sys)\`   | \`$(crate_version urcu-bp-sys)\`   |"
-    echo "| \`$(crate_name urcu-mb-sys)\`   | \`$(crate_version urcu-mb-sys)\`   |"
-    echo "| \`$(crate_name urcu-memb-sys)\` | \`$(crate_version urcu-memb-sys)\` |"
-    echo "| \`$(crate_name urcu-qsbr-sys)\` | \`$(crate_version urcu-qsbr-sys)\` |"
-    echo "| \`$(crate_name urcu-src)\`      | \`$(crate_version urcu-src)\`      |"
-    echo "| \`$(crate_name urcu-sys)\`      | \`$(crate_version urcu-sys)\`      |"
+    echo "| Crate                             | Version                              |"
+    echo "|:----------------------------------|:-------------------------------------|"
+    echo "| \`$(crate_name urcu-bp-sys)\`     | \`$(crate_version urcu-bp-sys)\`     |"
+    echo "| \`$(crate_name urcu-common-sys)\` | \`$(crate_version urcu-common-sys)\` |"
+    echo "| \`$(crate_name urcu-mb-sys)\`     | \`$(crate_version urcu-mb-sys)\`     |"
+    echo "| \`$(crate_name urcu-memb-sys)\`   | \`$(crate_version urcu-memb-sys)\`   |"
+    echo "| \`$(crate_name urcu-qsbr-sys)\`   | \`$(crate_version urcu-qsbr-sys)\`   |"
+    echo "| \`$(crate_name urcu-src)\`        | \`$(crate_version urcu-src)\`        |"
+    echo "| \`$(crate_name urcu-sys)\`        | \`$(crate_version urcu-sys)\`        |"
+    echo "| \`$(crate_name urcu)\`            | \`$(crate_version urcu)\`            |"
 }
 
 function gitlab_release() {
