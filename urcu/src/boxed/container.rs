@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::boxed::reference::Ref;
 use crate::rcu::RcuContext;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
+use crate::DefaultContext;
 
 /// Defines a RCU-enabled [`Box`].
 ///
@@ -24,7 +25,7 @@ use crate::utility::{PhantomUnsend, PhantomUnsync};
 /// It is safe to send an `Arc<RcuBox<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuBox<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuBox<T, C> {
+pub struct RcuBox<T, C = DefaultContext> {
     ptr: AtomicPtr<T>,
     _unsend: PhantomUnsend<C>,
     _unsync: PhantomUnsync<C>,
