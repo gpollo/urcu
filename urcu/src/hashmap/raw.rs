@@ -5,8 +5,7 @@ use std::ptr::NonNull;
 
 use anyhow::{bail, Result};
 use container_of::container_of;
-use urcu_sys::lfht;
-use urcu_sys::lfht::{HashTable, HashTableIterator, HashTableNode};
+use urcu_cds_sys::lfht;
 
 use crate::rcu::api::RcuUnsafe;
 use crate::rcu::RcuContext;
@@ -22,7 +21,7 @@ fn hash_of<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-unsafe extern "C" fn key_eq<K, V>(handle_ptr: *mut HashTableNode, key_ptr: *const c_void) -> c_int
+unsafe extern "C" fn key_eq<K, V>(handle_ptr: *mut lfht::Node, key_ptr: *const c_void) -> c_int
 where
     K: Eq,
 {
@@ -46,13 +45,13 @@ where
 //////////////////
 
 pub struct RawNodeHandle {
-    handle: *mut HashTableNode,
+    handle: *mut lfht::Node,
     key: *const c_void,
     key_hash: u64,
 }
 
 pub struct RawNode<K, V> {
-    handle: HashTableNode,
+    handle: lfht::Node,
     pub(crate) key: K,
     pub(crate) value: V,
 }
@@ -62,7 +61,7 @@ impl<K, V> RawNode<K, V> {
         let mut node = Box::new(Self {
             key,
             value,
-            handle: HashTableNode::default(),
+            handle: lfht::Node::default(),
         });
 
         // SAFETY: The pointer is non-null.
@@ -88,7 +87,7 @@ impl<K, V> RawNode<K, V> {
     /// #### Safety
     ///
     /// The pointer must not be null.
-    unsafe fn from_handle(handle: *mut HashTableNode) -> *mut Self {
+    unsafe fn from_handle(handle: *mut lfht::Node) -> *mut Self {
         container_of!(handle, Self, handle)
     }
 
@@ -98,7 +97,7 @@ impl<K, V> RawNode<K, V> {
 }
 
 pub struct RawIter<'a, K, V, C> {
-    handle: HashTableIterator,
+    handle: lfht::Iter,
     map: &'a RawMap<K, V, C>,
     _unsend: PhantomUnsend<(K, V, C)>,
     _unsync: PhantomUnsync<(K, V, C)>,
@@ -107,7 +106,7 @@ pub struct RawIter<'a, K, V, C> {
 impl<'a, K, V, C> RawIter<'a, K, V, C> {
     fn new<F>(map: &'a RawMap<K, V, C>, init: F) -> Self
     where
-        F: FnOnce(*mut HashTableIterator),
+        F: FnOnce(*mut lfht::Iter),
     {
         let mut iterator = Self {
             map,
@@ -155,7 +154,7 @@ impl<'a, K, V, C> RawIter<'a, K, V, C> {
 }
 
 pub struct RawMap<K, V, C> {
-    handle: *mut HashTable,
+    handle: *mut lfht::Handle,
     _unsend: PhantomUnsend<(K, V, C)>,
     _unsync: PhantomUnsync<(K, V, C)>,
 }

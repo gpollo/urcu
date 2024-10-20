@@ -3,15 +3,14 @@ use std::mem::MaybeUninit;
 use std::ops::Deref;
 
 use container_of::container_of;
-use urcu_sys::lfq;
-use urcu_sys::lfq::{Queue, QueueNode};
+use urcu_cds_sys::lfq;
 
 use crate::rcu::api::RcuUnsafe;
 use crate::rcu::RcuContext;
 use crate::utility::*;
 
 pub struct RawNode<T> {
-    handle: QueueNode,
+    handle: lfq::NodeRcu,
     data: T,
 }
 
@@ -23,12 +22,12 @@ impl<T> Drop for RawNode<T> {
 
 impl<T> RawNode<T> {
     pub fn new(data: T) -> Box<Self> {
-        let mut handle = MaybeUninit::<QueueNode>::uninit();
+        let mut handle = MaybeUninit::<lfq::NodeRcu>::uninit();
 
         println!("NEW NODE");
 
         // SAFETY: We don't need to registered with RCU in any way.
-        unsafe { lfq::node_init(handle.as_mut_ptr()) };
+        unsafe { lfq::node_init_rcu(handle.as_mut_ptr()) };
 
         Box::new(Self {
             // SAFETY: Data has been initialised by `lfq::node_init`.
@@ -37,7 +36,7 @@ impl<T> RawNode<T> {
         })
     }
 
-    fn into_handle(self: Box<Self>) -> *mut QueueNode {
+    fn into_handle(self: Box<Self>) -> *mut lfq::NodeRcu {
         let node_ptr = Box::into_raw(self);
         let node = unsafe { node_ptr.as_mut_unchecked() };
         &mut node.handle
@@ -63,7 +62,7 @@ unsafe impl<T: Send> Send for RawNode<T> {}
 unsafe impl<T: Sync> Sync for RawNode<T> {}
 
 pub struct RawQueue<T, C> {
-    handle: Queue,
+    handle: lfq::QueueRcu,
     _unsend: PhantomUnsend<(T, C)>,
     _unsync: PhantomUnsync<(T, C)>,
 }
@@ -77,7 +76,7 @@ impl<T, C> RawQueue<T, C> {
         C: RcuContext,
     {
         Self {
-            handle: Queue {
+            handle: lfq::QueueRcu {
                 head: std::ptr::null_mut(),
                 tail: std::ptr::null_mut(),
                 queue_call_rcu: None,
@@ -98,7 +97,7 @@ impl<T, C> RawQueue<T, C> {
         // SAFETY: We don't need to registered with RCU in any way.
         // SAFETY: The unchecked API is used by the C code.
         unsafe {
-            lfq::init(
+            lfq::init_rcu(
                 &mut self.handle,
                 C::Unsafe::unchecked_rcu_api().update_call_rcu,
             )
@@ -109,10 +108,10 @@ impl<T, C> RawQueue<T, C> {
     ///
     /// The caller must be inside a RCU critical section.
     pub unsafe fn enqueue(&self, node: Box<RawNode<T>>) {
-        let handle = &self.handle as *const Queue as *mut Queue;
+        let handle = &self.handle as *const lfq::QueueRcu as *mut lfq::QueueRcu;
 
         // SAFETY: The C call safely mutate the state shared between threads.
-        unsafe { lfq::enqueue(handle, node.into_handle()) }
+        unsafe { lfq::enqueue_rcu(handle, node.into_handle()) }
     }
 
     // #### Safety
@@ -121,12 +120,12 @@ impl<T, C> RawQueue<T, C> {
     //
     // The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn dequeue(&self) -> *mut RawNode<T> {
-        let handle = &self.handle as *const Queue as *mut Queue;
+        let handle = &self.handle as *const lfq::QueueRcu as *mut lfq::QueueRcu;
 
         println!("DEQUEUE {:?}", handle);
 
         // SAFETY: The C call safely mutate the state shared between threads.
-        let handle = unsafe { lfq::dequeue(handle) };
+        let handle = unsafe { lfq::dequeue_rcu(handle) };
         if handle.is_null() {
             std::ptr::null_mut()
         } else {
@@ -158,7 +157,7 @@ impl<T, C> RawQueue<T, C> {
 impl<T, C> Drop for RawQueue<T, C> {
     fn drop(&mut self) {
         // SAFETY: The queue creator must empty the queue before dropping.
-        let ret = unsafe { lfq::destroy(&mut self.handle) };
+        let ret = unsafe { lfq::destroy_rcu(&mut self.handle) };
 
         if ret != 0 {
             log::error!("raw queue was not emptied before dropping");

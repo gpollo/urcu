@@ -21,6 +21,7 @@ fn main() {
         .allowlist_var("CDS.*")
         .wrap_static_fns(true)
         .wrap_static_fns_path(out_dir.join("static_fns.c"))
+        .derive_default(true)
         .generate()
         .unwrap()
         .write_to_file(out_dir.join("bindings.rs"))

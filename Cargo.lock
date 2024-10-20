@@ -707,6 +707,7 @@ dependencies = [
  "static_assertions",
  "trybuild",
  "urcu2-bp-sys",
+ "urcu2-cds-sys",
  "urcu2-mb-sys",
  "urcu2-memb-sys",
  "urcu2-qsbr-sys",

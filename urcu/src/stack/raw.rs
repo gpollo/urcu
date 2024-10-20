@@ -3,19 +3,18 @@ use std::mem::MaybeUninit;
 use std::ops::Deref;
 
 use container_of::container_of;
-use urcu_sys::lfs;
-use urcu_sys::lfs::{Stack, StackHead, StackNode, StackPtr};
+use urcu_cds_sys::lfs;
 
 use crate::utility::*;
 
 pub struct RawNode<T> {
-    handle: StackNode,
+    handle: lfs::Node,
     data: T,
 }
 
 impl<T> RawNode<T> {
     pub fn new(data: T) -> Box<Self> {
-        let mut handle = MaybeUninit::<StackNode>::uninit();
+        let mut handle = MaybeUninit::<lfs::Node>::uninit();
 
         // SAFETY: We don't need to registered with RCU in any way.
         unsafe { lfs::node_init(handle.as_mut_ptr()) };
@@ -27,7 +26,7 @@ impl<T> RawNode<T> {
         })
     }
 
-    fn into_handle(self: Box<Self>) -> *mut StackNode {
+    fn into_handle(self: Box<Self>) -> *mut lfs::Node {
         let node_ptr = Box::into_raw(self);
         let node = unsafe { node_ptr.as_mut_unchecked() };
         &mut node.handle
@@ -53,7 +52,7 @@ unsafe impl<T: Send> Send for RawNode<T> {}
 unsafe impl<T: Sync> Sync for RawNode<T> {}
 
 pub struct RawStack<T> {
-    handle: Stack,
+    handle: lfs::__Stack,
     _unsend: PhantomUnsend<T>,
     _unsync: PhantomUnsync<T>,
 }
@@ -63,10 +62,10 @@ impl<T> RawStack<T> {
     ///
     /// The caller must pop all node before dropping this type.
     pub unsafe fn new() -> Self {
-        let mut handle = MaybeUninit::<Stack>::uninit();
+        let mut handle = MaybeUninit::<lfs::__Stack>::uninit();
 
         // SAFETY: We don't need to registered with RCU in any way.
-        unsafe { lfs::init(handle.as_mut_ptr()) };
+        unsafe { lfs::__init(handle.as_mut_ptr()) };
 
         Self {
             // SAFETY: Data has been initialised by `lfs::init`.
@@ -77,10 +76,10 @@ impl<T> RawStack<T> {
     }
 
     pub fn push(&self, node: Box<RawNode<T>>) {
-        let handle = &self.handle as *const Stack as *mut Stack;
+        let handle = &self.handle as *const lfs::__Stack as *mut lfs::__Stack;
 
         // SAFETY: The C call safely mutate the state shared between threads.
-        unsafe { lfs::push(StackPtr { _s: handle }, node.into_handle()) };
+        unsafe { lfs::push(lfs::StackPtr { _s: handle }, node.into_handle()) };
     }
 
     /// #### Safety
@@ -89,10 +88,10 @@ impl<T> RawStack<T> {
     ///
     /// The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn pop(&self) -> *mut RawNode<T> {
-        let handle = &self.handle as *const Stack as *mut Stack;
+        let handle = &self.handle as *const lfs::__Stack as *mut lfs::__Stack;
 
         // SAFETY: The C call safely mutate the state shared between threads.
-        let handle = unsafe { lfs::pop(StackPtr { _s: handle }) };
+        let handle = unsafe { lfs::__pop(lfs::StackPtr { _s: handle }) };
         if handle.is_null() {
             std::ptr::null_mut()
         } else {
@@ -106,11 +105,11 @@ impl<T> RawStack<T> {
     ///
     /// The caller must wait a RCU grace period before freeing the nodes.
     pub unsafe fn pop_all(&self) -> RawIterRef<T> {
-        let handle = &self.handle as *const Stack as *mut Stack;
+        let handle = &self.handle as *const lfs::__Stack as *mut lfs::__Stack;
 
         RawIterRef::new(
             // SAFETY: The C call safely mutate the state shared between threads.
-            unsafe { lfs::pop_all(StackPtr { _s: handle }) },
+            unsafe { lfs::__pop_all(lfs::StackPtr { _s: handle }) },
         )
     }
 
@@ -134,15 +133,15 @@ impl<T> RawStack<T> {
     }
 
     pub fn empty(&self) -> bool {
-        let handle = &self.handle as *const Stack as *mut Stack;
+        let handle = &self.handle as *const lfs::__Stack as *mut lfs::__Stack;
 
         // SAFETY: The C call does not mutate the shared state.
-        unsafe { lfs::empty(StackPtr { _s: handle }) }
+        unsafe { lfs::empty(lfs::StackPtr { _s: handle }) }
     }
 }
 
 pub struct RawIter<T> {
-    node: *const StackNode,
+    node: *const lfs::Node,
     _unsend: PhantomUnsend<T>,
     _unsync: PhantomUnsync<T>,
 }
@@ -151,11 +150,11 @@ impl<T> RawIter<T> {
     /// #### Safety
     ///
     /// The caller must be in a RCU critical section.
-    unsafe fn new(stack: &Stack) -> Self {
+    unsafe fn new(stack: &lfs::__Stack) -> Self {
         Self {
             node: crate::rcu_dereference(stack.head)
                 .as_ref()
-                .map(|head| crate::rcu_dereference(&head.node as *const StackNode))
+                .map(|head| crate::rcu_dereference(&head.node as *const lfs::Node))
                 .unwrap_or(std::ptr::null()),
             _unsend: PhantomData,
             _unsync: PhantomData,
@@ -170,14 +169,14 @@ impl<T> RawIter<T> {
             None => std::ptr::null(),
             Some(handle) => {
                 self.node = crate::rcu_dereference(handle.next);
-                container_of!(handle as *const StackNode, RawNode<T>, handle)
+                container_of!(handle as *const lfs::Node, RawNode<T>, handle)
             }
         }
     }
 }
 
 pub struct RawIterRef<T> {
-    node: *mut StackNode,
+    node: *mut lfs::Node,
     _unsend: PhantomUnsend<T>,
     _unsync: PhantomUnsync<T>,
 }
@@ -186,11 +185,11 @@ impl<T> RawIterRef<T> {
     /// #### Safety
     ///
     /// The head must be removed from the stack.
-    unsafe fn new(head: *mut StackHead) -> Self {
+    unsafe fn new(head: *mut lfs::Head) -> Self {
         Self {
             node: head
                 .as_mut()
-                .map(|head| &mut head.node as *mut StackNode)
+                .map(|head| &mut head.node as *mut lfs::Node)
                 .unwrap_or(std::ptr::null_mut()),
             _unsend: PhantomData,
             _unsync: PhantomData,
@@ -205,7 +204,7 @@ impl<T> RawIterRef<T> {
             None => std::ptr::null_mut(),
             Some(handle) => {
                 self.node = handle.next;
-                container_of!(handle as *mut StackNode, RawNode<T>, handle)
+                container_of!(handle as *mut lfs::Node, RawNode<T>, handle)
             }
         }
     }

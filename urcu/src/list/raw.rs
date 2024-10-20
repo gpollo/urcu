@@ -2,12 +2,12 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 
 use container_of::container_of;
-use urcu_sys::list::{self, ListHead};
+use urcu_cds_sys::list;
 
 use crate::utility::*;
 
 pub struct RawNode<T> {
-    handle: ListHead,
+    handle: list::Head,
     data: T,
 }
 
@@ -19,7 +19,7 @@ impl<T> RawNode<T> {
         })
     }
 
-    fn into_handle(self: Box<Self>) -> *mut ListHead {
+    fn into_handle(self: Box<Self>) -> *mut list::Head {
         let node_ptr = Box::into_raw(self);
         let node = unsafe { node_ptr.as_mut_unchecked() };
         &mut node.handle
@@ -45,8 +45,8 @@ unsafe impl<T: Send> Send for RawNode<T> {}
 unsafe impl<T: Sync> Sync for RawNode<T> {}
 
 pub struct RawList<T> {
-    back: ListHead,
-    front: ListHead,
+    back: list::Head,
+    front: list::Head,
     _unsend: PhantomUnsend<T>,
     _unsync: PhantomUnsync<T>,
 }
@@ -77,7 +77,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must have mutual exclusion from other writers.
     pub unsafe fn insert_back(&self, node: Box<RawNode<T>>) {
-        let back = &self.back as *const ListHead as *mut ListHead;
+        let back = &self.back as *const list::Head as *mut list::Head;
 
         // SAFETY: The C call safely mutate the state shared between threads.
         unsafe { list::add_rcu(node.into_handle(), back) }
@@ -87,7 +87,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must have mutual exclusion from other writers.
     pub unsafe fn insert_front(&self, node: Box<RawNode<T>>) {
-        let front = &self.front as *const ListHead as *mut ListHead;
+        let front = &self.front as *const list::Head as *mut list::Head;
 
         // SAFETY: The C call safely mutate the state shared between threads.
         unsafe { list::add_tail_rcu(node.into_handle(), front) }
@@ -101,7 +101,7 @@ impl<T> RawList<T> {
     pub unsafe fn remove_back(&self) -> *mut RawNode<T> {
         let handle = self.back.next;
 
-        if handle as *const ListHead != &self.front {
+        if handle as *const list::Head != &self.front {
             // SAFETY: The C call safely mutate the state shared between threads.
             unsafe { list::del_rcu(handle) };
             container_of!(handle, RawNode<T>, handle)
@@ -118,7 +118,7 @@ impl<T> RawList<T> {
     pub unsafe fn remove_front(&self) -> *mut RawNode<T> {
         let handle = self.front.prev;
 
-        if handle as *const ListHead != &self.back {
+        if handle as *const list::Head != &self.back {
             // SAFETY: The C call safely mutate the state shared between threads.
             unsafe { list::del_rcu(handle) };
             container_of!(handle, RawNode<T>, handle)
@@ -131,7 +131,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must be in a RCU critical section.
     pub unsafe fn get_back(&self) -> *const RawNode<T> {
-        let handle = self.back.next as *const ListHead;
+        let handle = self.back.next as *const list::Head;
 
         if handle != &self.front {
             container_of!(handle, RawNode<T>, handle)
@@ -144,7 +144,7 @@ impl<T> RawList<T> {
     ///
     /// The caller must be in a RCU critical section.
     pub unsafe fn get_front(&self) -> *const RawNode<T> {
-        let handle = self.front.prev as *const ListHead;
+        let handle = self.front.prev as *const list::Head;
 
         if handle != &self.back {
             container_of!(handle, RawNode<T>, handle)
@@ -154,13 +154,13 @@ impl<T> RawList<T> {
     }
 
     pub fn empty(&self) -> bool {
-        self.back.next as *const ListHead == &self.front
+        self.back.next as *const list::Head == &self.front
     }
 }
 
 pub struct RawIter<T, const FORWARD: bool> {
-    current: *const ListHead,
-    last: *const ListHead,
+    current: *const list::Head,
+    last: *const list::Head,
     _unsend: PhantomUnsend<T>,
     _unsync: PhantomUnsync<T>,
 }
@@ -211,7 +211,7 @@ impl<T, const FORWARD: bool> RawIter<T, FORWARD> {
                     crate::rcu_dereference_mut(handle.prev)
                 };
 
-                container_of!(handle as *const ListHead, RawNode<T>, handle)
+                container_of!(handle as *const list::Head, RawNode<T>, handle)
             }
         }
     }
