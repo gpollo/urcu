@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod bindings {
     #![allow(warnings)]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

@@ -1,6 +1,8 @@
 [package]
 name = "urcu2-src"
 description = "Redistribution of liburcu as a crate"
+homepage = "https://gitlab.com/gabrielpolloguilbert/urcu"
+repository = "https://gitlab.com/gabrielpolloguilbert/urcu"
 license = "LGPL-2.1-only"
 version = "0.1.4+0.14.1"
 edition = "2021"

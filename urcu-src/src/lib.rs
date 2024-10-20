@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 pub trait BuildConfig {
     fn cargo_link(&self, lib: &'static str);
 

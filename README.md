@@ -1,10 +1,13 @@
-[![Latest Version](https://img.shields.io/crates/v/urcu2?logo=rust)](https://crates.io/crates/urcu2)
-[![Latest Documentation](https://img.shields.io/docsrs/urcu2?logo=rust)](https://docs.rs/urcu2/latest/urcu/)
-[![Pipeline Status](https://img.shields.io/gitlab/pipeline-status/gabrielpolloguilbert%2Furcu?branch=master&logo=gitlab)](https://gitlab.com/gabrielpolloguilbert/urcu/-/pipelines/latest)
+[![Repository](https://img.shields.io/badge/Repository-Gitlab-blue?style=for-the-badge&logo=gitlab
+)](https://gitlab.com/gabrielpolloguilbert/urcu)
+[![Latest Version](https://img.shields.io/crates/v/urcu2?style=for-the-badge&logo=rust)](https://crates.io/crates/urcu2)
+[![Latest Documentation](https://img.shields.io/docsrs/urcu2?style=for-the-badge&logo=rust)](https://docs.rs/urcu2/latest/urcu/)
+
+# Userspace RCU
 
 This crate provides safe Rust API to [`liburcu`][liburcu] for Linux systems.
 
-# Goals
+## Goals
 
 The goal is to provide traits and primitives where RCU guarantees are always respected.
 
@@ -12,14 +15,14 @@ The goal is to provide traits and primitives where RCU guarantees are always res
 * Enforce RCU syncronization when taking ownership of a RCU reference.
 * Enforce memory cleanups in the exposed RCU data structures.
 
-# Warnings
+## Warnings
 
 Even though [`liburcu`][liburcu] is well tested and used in many applications, this
 crate is still *experimental*. It works well in toy applications and stress tests,
 but I cannot guarantee it's bug free. There may be hidden race conditions or type
 unsoundness that may lead to undefined behaviors.
 
-# Features
+## Features
 
 This crate offers optional features. By default, all flavors are included.
 
@@ -31,7 +34,7 @@ This crate offers optional features. By default, all flavors are included.
   * This feature requires that [`liburcu`][liburcu] build dependencies are installed.
   * Without this feature, you need to install [`liburcu`][liburcu] our your system.
 
-# Types
+## Types
 
 #### RCU Context
 
@@ -59,7 +62,7 @@ ownership of this reference, you need to wait for a RCU grace period. It is enfo
 calling [`RcuRef::take_ownership`]. Dropping a [`RcuRef`] without taking ownership will
 still cleanup safely.
 
-# Data Structures
+## Data Structures
 
 All data structures, except [`RcuBox<T>`], are a wrapper around `liburcu-cds` API. They
 all supports RCU read traversal.
@@ -72,7 +75,7 @@ all supports RCU read traversal.
 | [`RcuQueue<T>`]      | RCU queue with lock-free updates.                 |
 | [`RcuStack<T>`]      | RCU stack with wait-free updates.                 |
 
-# Example
+## Example
 
 ```rust
 // register the current thread for RCU operations
@@ -102,7 +105,7 @@ let mut job = job.take_ownership(&mut context);
 job.execute();
 ```
 
-# Performance
+## Performance
 
 Althought most of the API should have low-overhead on the existing C library, we
 are currently linking [`liburcu`][liburcu] dynamically, meaning that all the inlined

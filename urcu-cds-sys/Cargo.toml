@@ -1,6 +1,8 @@
 [package]
 name = "urcu2-cds-sys"
 description = "Bindings to liburcu-cds"
+homepage = "https://gitlab.com/gabrielpolloguilbert/urcu"
+repository = "https://gitlab.com/gabrielpolloguilbert/urcu"
 license = "GPL-3.0-or-later"
 version = "0.1.0-pre"
 edition = "2021"

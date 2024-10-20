@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use urcu_sys::RcuFlavorApi;
 
 mod bindings {

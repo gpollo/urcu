@@ -1,6 +1,8 @@
 [package]
 name = "urcu2-memb-sys"
 description = "Bindings to liburcu-memb"
+homepage = "https://gitlab.com/gabrielpolloguilbert/urcu"
+repository = "https://gitlab.com/gabrielpolloguilbert/urcu"
 license = "GPL-3.0-or-later"
 version = "0.1.1"
 edition = "2021"
