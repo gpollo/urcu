@@ -23,7 +23,6 @@ fn main() {
         metadeps::probe().unwrap();
     }
 
-    build_config.cargo_link("urcu-cds");
     build_config.cargo_link("urcu");
     build_config
         .default_bindgen()

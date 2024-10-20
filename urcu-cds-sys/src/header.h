@@ -6,3 +6,6 @@
 #include <urcu/rculfqueue.h>
 #include <urcu/rculfstack.h>
 #include <urcu/rculist.h>
+#include <urcu/wfcqueue.h>
+#include <urcu/wfqueue.h>
+#include <urcu/wfstack.h>

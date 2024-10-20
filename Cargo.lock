@@ -732,18 +732,8 @@ dependencies = [
  "cc",
  "libc",
  "metadeps",
- "urcu2-common-sys",
  "urcu2-src",
  "urcu2-sys",
-]
-
-[[package]]
-name = "urcu2-common-sys"
-version = "0.1.0-pre"
-dependencies = [
- "bindgen",
- "libc",
- "urcu2-src",
 ]
 
 [[package]]

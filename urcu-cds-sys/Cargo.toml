@@ -16,7 +16,6 @@ liburcu-cds = "0.14"
 
 [dependencies]
 libc = { version = "0.2", features = ["extra_traits"] }
-urcu2-common-sys = { version = "0.1.0-pre", path = "../urcu-common-sys" }
 urcu2-sys = { version = "0.1.7", path = "../urcu-sys" }
 
 [build-dependencies]
