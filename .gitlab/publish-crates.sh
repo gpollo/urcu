@@ -22,8 +22,6 @@ function cargo_login() {
 
 function crate_name() {
     local dir="$1"
-    local crate_name
-    local crate_version
 
     crate_name=$(tq -f "${dir}/Cargo.toml" "package.name")
     crate_version=$(tq -f "${dir}/Cargo.toml" "package.version")
@@ -39,6 +37,13 @@ function crate_released() {
 
 function crate_publish() {
     local dir="$1"
+
+    if grep -- "-pre" < "${dir}/Cargo.toml" > /dev/null; then
+        echo " "
+        echo "crate $(crate_name "${dir}") is not ready for release"
+        echo " "
+        return
+    fi
 
     if ! crate_released "${dir}"; then
         pushd "${dir}"
@@ -62,6 +67,7 @@ crate_publish ../urcu-bp-sys
 crate_publish ../urcu-mb-sys
 crate_publish ../urcu-memb-sys
 crate_publish ../urcu-qsbr-sys
+
 cp ../README.md ../urcu/README.md
 sed -i 's#../../README.md#../README.md#g' ../urcu/src/lib.rs
 crate_publish ../urcu --allow-dirty
