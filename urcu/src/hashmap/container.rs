@@ -8,7 +8,7 @@ use crate::hashmap::iterator::Iter;
 use crate::hashmap::raw::RawMap;
 use crate::hashmap::reference::Ref;
 use crate::rcu::RcuContext;
-use crate::{DefaultContext, RcuRef};
+use crate::{DefaultContext, RcuReadContext, RcuRef};
 
 /// Defines a RCU lock-free hashmap.
 ///
@@ -36,13 +36,14 @@ pub struct RcuHashMap<K, V, C = DefaultContext>(RawMap<K, V, C>)
 where
     K: Send + 'static,
     V: Send + 'static,
-    C: RcuContext + 'static;
+    // TODO: Remove RcuReadContext constraint.
+    C: RcuReadContext + 'static;
 
 impl<K, V, C> RcuHashMap<K, V, C>
 where
     K: Send,
     V: Send,
-    C: RcuContext,
+    C: RcuReadContext,
 {
     /// Creates a new RCU hashmap.
     pub fn new() -> Result<Arc<Self>>
@@ -136,7 +137,7 @@ impl<K, V, C> Drop for RcuHashMap<K, V, C>
 where
     K: Send + 'static,
     V: Send + 'static,
-    C: RcuContext + 'static,
+    C: RcuReadContext + 'static,
 {
     fn drop(&mut self) {
         let mut raw = self.0.clone();

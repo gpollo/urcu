@@ -1,5 +1,5 @@
 use crate::rcu::callback::{RcuCallFn, RcuDeferFn};
-use crate::rcu::RcuContext;
+use crate::rcu::{RcuContext, RcuReadContext};
 
 /// This trait defines a RCU reference that can be owned after a RCU grace period.
 ///
@@ -22,15 +22,15 @@ use crate::rcu::RcuContext;
 ///
 /// * We cannot call [`RcuContext::rcu_defer`] since we can't enforce that the
 ///   thread is registered with the RCU defer mecanisms[^mborrow].
-/// * We cannot call [`RcuContext::rcu_call`] since we can't enforce that the
+/// * We cannot call [`RcuReadContext::rcu_call`] since we can't enforce that the
 ///   thread is registered with the RCU read mecanisms[^cborrow].
 ///
 /// The only way to keep the safety guarantees of this crate is to use the custom
 /// cleanup thread through [`RcuRef::safe_cleanup`]. It is similar to the built-in
-/// [`RcuContext::rcu_call`], except it doesn't expect the calling thread to be
+/// [`RcuReadContext::rcu_call`], except it doesn't expect the calling thread to be
 /// registered with RCU in any way.
 ///
-/// The downside is that it is most likely worst than [`RcuContext::rcu_call`] in
+/// The downside is that it is most likely worst than [`RcuReadContext::rcu_call`] in
 /// every way. If it is a performance problem, the owner of an [`RcuRef`] can alway
 /// use [`RcuRef::defer_cleanup`] and [`RcuRef::call_cleanup`] before [`Drop::drop`]
 /// is called.
@@ -85,13 +85,13 @@ pub unsafe trait RcuRef<C> {
     ///
     /// #### Note
     ///
-    /// The function will internally call [`RcuContext::rcu_read_lock`].
+    /// The function will internally call [`RcuReadContext::rcu_read_lock`].
     ///
     /// The reference must implement [`Send`] since the cleanup will be executed in an helper thread.
     fn call_cleanup(self, context: &C)
     where
         Self: Sized + Send + 'static,
-        C: RcuContext + 'static,
+        C: RcuReadContext + 'static,
     {
         context.rcu_call(RcuCallFn::new(move || {
             // SAFETY: The caller already executed a RCU syncronization.

@@ -1,4 +1,4 @@
-use urcu::{DefaultContext, RcuContext, RcuBox};
+use urcu::{DefaultContext, RcuContext, RcuReadContext, RcuBox};
 
 fn main() {
     let context = DefaultContext::rcu_register().unwrap();

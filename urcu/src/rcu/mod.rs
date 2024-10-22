@@ -27,7 +27,7 @@ pub trait RcuPoller {
 ///
 /// By exploiting this rule, we can enforce that a thread never executes a RCU
 /// synchronization barrier at the same time as it holds a RCU read lock. For
-/// example, [`RcuContext::rcu_read_lock`] requires (`&self`), meaning we can
+/// example, [`RcuReadContext::rcu_read_lock`] requires (`&self`), meaning we can
 /// nest as many read locks as we want. On the other hand, [`RcuContext::rcu_synchronize`]
 /// requires `&mut self`, meaning we can never call it while a read guard borrows
 /// `&self`.
@@ -37,20 +37,12 @@ pub trait RcuPoller {
 /// 1. You must enforce single context per thread for a specific RCU flavor.
 ///    Failure to do so can lead to a deadlock if a thread acquires a RCU read lock
 ///    from one context and tries to do a RCU syncronization from another context.
-/// 2. For callbacks (`rcu_call`), a barrier (`rcu_barrier`) should be executed
-///    before cleaning up the context. Failure to do so might results in memory
-///    leaks and object cleanups that don't happen.
-/// 3. For deferred callbacks (`rcu_defer`), a barrier (`defer_barrier`) should be
+/// 2. For deferred callbacks (`rcu_defer`), a barrier (`defer_barrier`) should be
 ///    executed before cleaning up the context. Failure to do so might results in
 ///    memory leaks and object cleanups that don't happen.
 pub unsafe trait RcuContext {
     /// Defines an API for unchecked RCU primitives.
     type Unsafe: RcuUnsafe;
-
-    /// Defines a guard for a RCU critical section.
-    type Guard<'a>: 'a
-    where
-        Self: 'a;
 
     /// Defines a grace period poller;
     type Poller<'a>: RcuPoller + 'a
@@ -65,13 +57,6 @@ pub unsafe trait RcuContext {
     fn rcu_register() -> Option<Self>
     where
         Self: Sized;
-
-    /// Starts a RCU critical section.
-    ///
-    /// #### Note
-    ///
-    /// RCU critical sections may be nested.
-    fn rcu_read_lock(&self) -> Self::Guard<'_>;
 
     /// Waits until the RCU grace period is over.
     ///
@@ -100,18 +85,7 @@ pub unsafe trait RcuContext {
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
-    /// #### Note
-    ///
-    /// The function will internally call [`RcuContext::rcu_read_lock`].
-    ///
-    /// The callback must be [`Send`] because it will be executed by an helper thread.
-    fn rcu_call<F>(&self, callback: Box<F>)
-    where
-        F: RcuCall + Send + 'static;
-
-    /// Configures a callback to be called after the next RCU grace period is finished.
-    ///
-    /// Unlike [`RcuContext::rcu_call`], this function can be called by any thread whether
+    /// Unlike [`RcuReadContext::rcu_call`], this function can be called by any thread whether
     /// it is registered or not.
     ///
     /// #### Note
@@ -121,7 +95,7 @@ pub unsafe trait RcuContext {
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
-    /// Unlike [`RcuContext::rcu_call`], this function can be called by any thread whether
+    /// Unlike [`RcuReadContext::rcu_call`], this function can be called by any thread whether
     /// it is registered or not.
     ///
     /// #### Note
@@ -130,6 +104,38 @@ pub unsafe trait RcuContext {
     ///
     /// The callback does not receive a mutable context in order to prevent deadlock.
     fn rcu_cleanup_and_block(callback: RcuCleanup<Self>);
+}
+
+/// This trait defines the per-thread RCU read context.
+///
+/// #### Safety
+///
+/// For callbacks (`rcu_call`), a barrier (`rcu_barrier`) should be executed
+/// before cleaning up the context. Failure to do so might results in memory
+/// leaks and object cleanups that don't happen.
+pub unsafe trait RcuReadContext: RcuContext {
+    /// Defines a guard for a RCU critical section.
+    type Guard<'a>: 'a
+    where
+        Self: 'a;
+
+    /// Starts a RCU critical section.
+    ///
+    /// #### Note
+    ///
+    /// RCU critical sections may be nested.
+    fn rcu_read_lock(&self) -> Self::Guard<'_>;
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// #### Note
+    ///
+    /// The function will internally call [`RcuReadContext::rcu_read_lock`].
+    ///
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
+    fn rcu_call<F>(&self, callback: Box<F>)
+    where
+        F: RcuCall + Send + 'static;
 }
 
 macro_rules! define_rcu_guard {
@@ -273,12 +279,9 @@ macro_rules! define_rcu_context {
         /// #### Safety
         ///
         /// 1. There can only be 1 instance per thread.
-        /// 2. `call_rcu` barrier is called before cleanups.
         /// 3. `defer_rcu` barrier is called before cleanups.
         unsafe impl RcuContext for $context {
             type Unsafe = $unsafe;
-
-            type Guard<'a> = $guard<'a>;
 
             type Poller<'a> = $poller<'a>;
 
@@ -287,10 +290,6 @@ macro_rules! define_rcu_context {
                 Self: Sized,
             {
                 Self::new()
-            }
-
-            fn rcu_read_lock(&self) -> Self::Guard<'_> {
-                $guard::new(self)
             }
 
             fn rcu_synchronize(&mut self) {
@@ -317,6 +316,26 @@ macro_rules! define_rcu_context {
                 });
             }
 
+            fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
+                Self::cleanup_send(callback);
+            }
+
+            fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
+                Self::cleanup_send_and_block(callback);
+            }
+        }
+
+        /// #### Safety
+        ///
+        /// `call_rcu` barrier is called before cleanups.
+        ///
+        unsafe impl RcuReadContext for $context {
+            type Guard<'a> = $guard<'a>;
+
+            fn rcu_read_lock(&self) -> Self::Guard<'_> {
+                $guard::new(self)
+            }
+
             fn rcu_call<F>(&self, callback: Box<F>)
             where
                 F: RcuCall + Send + 'static,
@@ -328,14 +347,6 @@ macro_rules! define_rcu_context {
                     // SAFETY: The pointers validity is guaranteed by `RcuCall`.
                     unsafe { $unsafe::unchecked_rcu_call(Some(func), head.as_mut()) };
                 });
-            }
-
-            fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
-                Self::cleanup_send(callback);
-            }
-
-            fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
-                Self::cleanup_send_and_block(callback);
             }
         }
     };

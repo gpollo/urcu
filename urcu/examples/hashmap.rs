@@ -5,8 +5,7 @@ use std::sync::Arc;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use urcu::flavor::RcuContextMemb;
-use urcu::RcuContext;
-use urcu::{RcuHashMap, RcuRef};
+use urcu::{RcuContext, RcuHashMap, RcuReadContext, RcuRef};
 
 fn key_to_value(key: u32) -> u64 {
     (key * (key + 1337)) as u64

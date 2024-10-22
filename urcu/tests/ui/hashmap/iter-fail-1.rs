@@ -1,4 +1,4 @@
-use urcu::{DefaultContext, RcuContext, RcuHashMap};
+use urcu::{DefaultContext, RcuContext, RcuReadContext, RcuHashMap};
 
 fn main() {
     let context = DefaultContext::rcu_register().unwrap();

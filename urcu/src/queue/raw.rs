@@ -13,18 +13,9 @@ pub struct RawNode<T> {
     handle: lfq::NodeRcu,
     data: T,
 }
-
-impl<T> Drop for RawNode<T> {
-    fn drop(&mut self) {
-        println!("DROP NODE");
-    }
-}
-
 impl<T> RawNode<T> {
     pub fn new(data: T) -> Box<Self> {
         let mut handle = MaybeUninit::<lfq::NodeRcu>::uninit();
-
-        println!("NEW NODE");
 
         // SAFETY: We don't need to registered with RCU in any way.
         unsafe { lfq::node_init_rcu(handle.as_mut_ptr()) };
@@ -71,10 +62,7 @@ impl<T, C> RawQueue<T, C> {
     /// #### Safety
     ///
     /// The caller must call [`RawQueue::init`] once [`RawQueue`] is in a stable memory location.
-    pub unsafe fn new() -> Self
-    where
-        C: RcuContext,
-    {
+    pub unsafe fn new() -> Self {
         Self {
             handle: lfq::QueueRcu {
                 head: std::ptr::null_mut(),

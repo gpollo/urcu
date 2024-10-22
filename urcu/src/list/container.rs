@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 use crate::list::iterator::Iter;
 use crate::list::raw::{RawIter, RawList, RawNode};
 use crate::list::reference::Ref;
-use crate::rcu::{DefaultContext, RcuContext};
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 use crate::utility::*;
 
 /// Defines a RCU doubly linked list.
@@ -70,7 +70,7 @@ impl<T, C> RcuList<T, C> {
     pub fn contains(&self, x: &T, guard: &C::Guard<'_>) -> bool
     where
         T: PartialEq,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         self.iter_forward(guard).any(|item| item == x)
     }
@@ -170,7 +170,7 @@ impl<T, C> RcuList<T, C> {
     pub fn back<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
     where
         'me: 'guard,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         let _ = guard;
 
@@ -183,7 +183,7 @@ impl<T, C> RcuList<T, C> {
     pub fn front<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
     where
         'me: 'guard,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         let _ = guard;
 
@@ -201,7 +201,7 @@ impl<T, C> RcuList<T, C> {
     ) -> Iter<'ctx, 'guard, T, C, true>
     where
         'me: 'guard,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { RawIter::<T, true>::from_back(&self.raw) }, guard)
@@ -216,7 +216,7 @@ impl<T, C> RcuList<T, C> {
     ) -> Iter<'ctx, 'guard, T, C, false>
     where
         'me: 'guard,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { RawIter::<T, false>::from_front(&self.raw) }, guard)

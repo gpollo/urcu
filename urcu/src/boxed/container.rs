@@ -3,9 +3,8 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use crate::boxed::reference::Ref;
-use crate::rcu::RcuContext;
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 use crate::utility::{PhantomUnsend, PhantomUnsync};
-use crate::DefaultContext;
 
 /// Defines a RCU-enabled [`Box`].
 ///
@@ -45,7 +44,7 @@ impl<T, C> RcuBox<T, C> {
     pub fn get<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> &'guard T
     where
         'me: 'guard,
-        C: RcuContext,
+        C: RcuReadContext,
     {
         let _ = guard;
 

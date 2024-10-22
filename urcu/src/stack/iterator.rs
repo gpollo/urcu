@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use crate::rcu::RcuContext;
+use crate::rcu::RcuReadContext;
 use crate::stack::raw::{RawIter, RawIterRef};
 use crate::stack::reference::Ref;
 use crate::utility::*;
@@ -12,7 +12,7 @@ use crate::utility::*;
 /// [`RcuStack`]: crate::stack::container::RcuStack
 pub struct Iter<'ctx, 'guard, T, C>
 where
-    C: RcuContext + 'ctx,
+    C: RcuReadContext + 'ctx,
 {
     raw: RawIter<T>,
     _guard: &'guard C::Guard<'ctx>,
@@ -22,7 +22,7 @@ where
 
 impl<'ctx, 'guard, T, C> Iter<'ctx, 'guard, T, C>
 where
-    C: RcuContext + 'ctx,
+    C: RcuReadContext + 'ctx,
 {
     pub(crate) fn new(raw: RawIter<T>, guard: &'guard C::Guard<'ctx>) -> Self {
         Self {
@@ -37,7 +37,7 @@ where
 impl<'guard, T, C> Iterator for Iter<'_, 'guard, T, C>
 where
     Self: 'guard,
-    C: RcuContext,
+    C: RcuReadContext,
 {
     type Item = &'guard T;
 
@@ -69,7 +69,7 @@ impl<T, C> IterRef<T, C> {
 impl<T, C> Iterator for IterRef<T, C>
 where
     T: Send + 'static,
-    C: RcuContext + 'static,
+    C: RcuReadContext + 'static,
 {
     type Item = Ref<T, C>;
 

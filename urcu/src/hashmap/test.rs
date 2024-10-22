@@ -1,6 +1,6 @@
 use crate::hashmap::container::RcuHashMap;
-use crate::rcu::{DefaultContext, RcuContext};
-use crate::RcuRef;
+use crate::rcu::reference::RcuRef;
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 
 macro_rules! assert_sorted_eq {
     ($left:expr, $right:expr) => {

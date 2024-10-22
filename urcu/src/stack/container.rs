@@ -3,8 +3,7 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::rcu::DefaultContext;
-use crate::rcu::RcuContext;
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 use crate::stack::iterator::{Iter, IterRef};
 use crate::stack::raw::{RawNode, RawStack};
 use crate::stack::reference::Ref;
@@ -43,10 +42,7 @@ pub struct RcuStack<T, C = DefaultContext> {
     _unsync: PhantomUnsync<(T, C)>,
 }
 
-impl<T, C> RcuStack<T, C>
-where
-    C: RcuContext,
-{
+impl<T, C> RcuStack<T, C> {
     /// Creates a new RCU stack.
     pub fn new() -> Arc<Self> {
         Arc::new(RcuStack {
@@ -68,6 +64,7 @@ where
     pub fn pop(&self, guard: &C::Guard<'_>) -> Option<Ref<T, C>>
     where
         T: Send,
+        C: RcuReadContext,
     {
         let _ = guard;
 
@@ -82,6 +79,7 @@ where
     pub fn pop_all(&self, _guard: &C::Guard<'_>) -> IterRef<T, C>
     where
         T: Send,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU critical section is enforced.
         // SAFETY: RCU grace period is enforced.
@@ -92,6 +90,7 @@ where
     pub fn peek<'me, 'ctx, 'guard>(&'me self, _guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
     where
         'me: 'guard,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU critical section is enforced.
         let node = unsafe { self.raw.head() };
@@ -109,6 +108,7 @@ where
     ) -> Iter<'ctx, 'guard, T, C>
     where
         'me: 'guard,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { self.raw.iter() }, guard)

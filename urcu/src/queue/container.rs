@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::queue::raw::{RawNode, RawQueue};
 use crate::queue::reference::Ref;
-use crate::rcu::{DefaultContext, RcuContext};
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 use crate::utility::*;
 
 /// Defines a RCU wait-free queue.
@@ -32,12 +32,12 @@ pub struct RcuQueue<T, C = DefaultContext> {
     _unsync: PhantomUnsync,
 }
 
-impl<T, C> RcuQueue<T, C>
-where
-    C: RcuContext,
-{
+impl<T, C> RcuQueue<T, C> {
     /// Creates a new RCU queue.
-    pub fn new() -> Arc<Self> {
+    pub fn new() -> Arc<Self>
+    where
+        C: RcuContext,
+    {
         let mut queue = Arc::new(RcuQueue {
             // SAFETY: Initialisation is properly called.
             raw: unsafe { RawQueue::new() },
@@ -56,6 +56,7 @@ where
     pub fn push(&self, data: T, _guard: &C::Guard<'_>)
     where
         T: Send,
+        C: RcuReadContext,
     {
         let node = RawNode::new(data);
 
@@ -67,6 +68,7 @@ where
     pub fn pop(&self, _guard: &C::Guard<'_>) -> Option<Ref<T, C>>
     where
         T: Send,
+        C: RcuReadContext,
     {
         // SAFETY: The RCU read-lock is taken.
         // SAFETY: The RCU grace period is enforced using `Ref<T, C>`.

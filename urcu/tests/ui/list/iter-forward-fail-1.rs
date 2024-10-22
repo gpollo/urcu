@@ -1,5 +1,5 @@
 use urcu::flavor::RcuContextMemb;
-use urcu::RcuContext;
+use urcu::{RcuContext, RcuReadContext};
 use urcu::RcuList;
 
 fn main() {

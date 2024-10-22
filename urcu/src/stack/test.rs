@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::rcu::reference::RcuRef;
-use crate::rcu::{DefaultContext, RcuContext};
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 use crate::stack::container::RcuStack;
 
 #[test]

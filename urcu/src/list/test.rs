@@ -1,6 +1,6 @@
 use crate::list::container::RcuList;
 use crate::rcu::reference::RcuRef;
-use crate::rcu::{DefaultContext, RcuContext};
+use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 
 #[test]
 fn peek() {

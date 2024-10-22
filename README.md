@@ -50,7 +50,7 @@ to register only on features it needs.
 #### RCU Guard
 
 When accessing RCU protected data, every data structure will require a RCU read guard.
-It is obtained from [`RcuContext::rcu_read_lock`]. The lifetime of the references will
+It is obtained from [`RcuReadContext::rcu_read_lock`]. The lifetime of the references will
 be the same as this guard. That way, the Rust compiler guarantees that the RCU read lock
 is taken.
 

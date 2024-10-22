@@ -1,14 +1,14 @@
 use std::ops::Deref;
 
 use crate::list::raw::RawIter;
-use crate::rcu::RcuContext;
+use crate::rcu::RcuReadContext;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///
 /// [`RcuList`]: crate::list::container::RcuList
 pub struct Iter<'ctx, 'guard, T, C, const FORWARD: bool>
 where
-    C: RcuContext + 'ctx,
+    C: RcuReadContext + 'ctx,
 {
     raw: RawIter<T, FORWARD>,
     #[allow(dead_code)]
@@ -17,7 +17,7 @@ where
 
 impl<'ctx, 'guard, T, C, const FORWARD: bool> Iter<'ctx, 'guard, T, C, FORWARD>
 where
-    C: RcuContext + 'ctx,
+    C: RcuReadContext + 'ctx,
 {
     pub(crate) fn new(raw: RawIter<T, FORWARD>, guard: &'guard C::Guard<'ctx>) -> Self {
         Self { raw, guard }
@@ -27,7 +27,7 @@ where
 impl<'ctx, 'guard, T, C, const FORWARD: bool> Iterator for Iter<'ctx, 'guard, T, C, FORWARD>
 where
     Self: 'guard,
-    C: RcuContext + 'ctx,
+    C: RcuReadContext + 'ctx,
 {
     type Item = &'guard T;
 
