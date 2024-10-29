@@ -6,9 +6,8 @@
 //!
 //! [`RcuRef`]: crate::rcu::reference::RcuRef
 
-use std::cell::{Cell, OnceCell};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::RwLock;
 use std::thread::JoinHandle;
 
 use super::RcuContext;
@@ -22,6 +21,7 @@ pub type RcuCleanupMut<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
 enum RcuCleanerCommand<C> {
     Execute(RcuCleanup<C>),
     ExecuteMut(RcuCleanupMut<C>),
+    Barrier(Sender<()>),
     Shutdown,
 }
 
@@ -44,12 +44,20 @@ where
             match self.commands.recv() {
                 Ok(RcuCleanerCommand::Execute(callback)) => callback(&context),
                 Ok(RcuCleanerCommand::ExecuteMut(callback)) => callback(&mut context),
-                Ok(RcuCleanerCommand::Shutdown) | Err(_) => {
-                    log::debug!("shutting down RCU cleanup thread");
+                Ok(RcuCleanerCommand::Shutdown) => break,
+                Ok(RcuCleanerCommand::Barrier(sender)) => {
+                    if let Err(e) = sender.send(()) {
+                        log::error!("failed to execute cleanup barrier: {:?}", e);
+                    }
+                }
+                Err(e) => {
+                    log::error!("failed to get cleanup command: {:?}", e);
                     break;
                 }
             }
         }
+
+        log::debug!("shutting down cleanup thread");
     }
 }
 
@@ -88,11 +96,11 @@ where
         )
     }
 
-    pub fn get(instance: &RwLock<Option<Self>>) -> RcuCleanupSender<C> {
+    fn get(instance: &RwLock<Option<Self>>) -> RcuCleanupSender<C> {
         Self::try_get(instance).unwrap_or_else(|| Self::set(instance))
     }
 
-    pub fn delete(instance: &RwLock<Option<Self>>) {
+    fn delete(instance: &RwLock<Option<Self>>) {
         if let Some(handle) = instance.write().unwrap().take().and_then(|instance| {
             instance
                 .callbacks
@@ -107,111 +115,107 @@ where
     }
 }
 
-struct RcuCleanupSender<C>(Sender<RcuCleanerCommand<C>>);
+pub struct RcuCleanupSender<C>(Sender<RcuCleanerCommand<C>>);
 
 impl<C> RcuCleanupSender<C> {
     pub fn send(&self, callback: RcuCleanup<C>) {
-        if self.0.send(RcuCleanerCommand::Execute(callback)).is_err() {
-            log::error!("failed to send cleanup execute command");
+        let command = RcuCleanerCommand::Execute(callback);
+        if let Err(e) = self.0.send(command) {
+            log::error!("failed to send execute command: {:?}", e);
         }
     }
 
     pub fn send_mut(&self, callback: RcuCleanupMut<C>) {
-        if self
-            .0
-            .send(RcuCleanerCommand::ExecuteMut(callback))
-            .is_err()
-        {
-            log::error!("failed to send cleanup execute command");
+        let command = RcuCleanerCommand::ExecuteMut(callback);
+        if let Err(e) = self.0.send(command) {
+            log::error!("failed to send execute command: {:?}", e);
+        }
+    }
+
+    pub fn barrier(&self) {
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        let command = RcuCleanerCommand::Barrier(tx);
+        if let Err(e) = self.0.send(command) {
+            log::error!("failed to send barrier command: {:?}", e);
+        } else if let Err(e) = rx.recv() {
+            log::error!("failed to wait for barrier: {:?}", e);
         }
     }
 }
 
-// impl<C> RcuCleanupSender<C> {
+#[cfg(feature = "flavor-bp")]
+mod bp {
+    use super::*;
 
-//     pub fn remove(&self) {
-//         // The last thread doing this will join the cleanup thread.
-//         self.thread.set(None);
-//     }
-// }
+    use crate::rcu::flavor::RcuContextBp;
 
-// macro_rules! impl_cleanup_for_context {
-//     ($context:ident) => {
-//         static CLEANUP_THREAD: Mutex<Weak<RcuCleanupThread<$context>>> = Mutex::new(Weak::new());
+    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextBp>>> = RwLock::new(None);
 
-//         impl $context {
-//             thread_local! {
-//                 static CLEANUP_SENDER: OnceCell<RcuCleanupSender<$context>> = OnceCell::new();
-//             }
+    impl RcuCleanupSender<RcuContextBp> {
+        pub fn get() -> Self {
+            RcuCleanupHandle::<RcuContextBp>::get(&INSTANCE)
+        }
 
-//             pub(crate) fn cleanup_send(callback: RcuCleanupMut<Self>) {
-//                 Self::CLEANUP_SENDER.with(|cell| {
-//                     cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
-//                         .send_mut(callback);
-//                 });
-//             }
+        pub fn delete() {
+            RcuCleanupHandle::<RcuContextBp>::delete(&INSTANCE)
+        }
+    }
+}
 
-//             pub(crate) fn cleanup_send_and_block(callback: RcuCleanup<Self>) {
-//                 Self::CLEANUP_SENDER.with(|cell| {
-//                     let (tx, rx) = std::sync::mpsc::channel::<()>();
+#[cfg(feature = "flavor-mb")]
+mod mb {
+    use super::*;
 
-//                     cell.get_or_init(|| RcuCleanupThread::get(&CLEANUP_THREAD))
-//                         .send(Box::new(move |mut context| {
-//                             callback(&mut context);
-//                             if let Err(e) = tx.send(()) {
-//                                 log::error!("failed to send cleanup signal: {:?}", e);
-//                             }
-//                         }));
+    use crate::rcu::flavor::RcuContextMb;
 
-//                     if let Err(e) = rx.recv() {
-//                         log::error!("failed to receive cleanup signal: {:?}", e);
-//                     }
-//                 });
-//             }
+    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextMb>>> = RwLock::new(None);
 
-//             pub(crate) fn cleanup_remove() {
-//                 Self::CLEANUP_SENDER.with(|cell| {
-//                     if let Some(sender) = cell.get() {
-//                         sender.remove();
-//                     }
-//                 });
-//             }
-//         }
-//     };
-// }
+    impl RcuCleanupSender<RcuContextMb> {
+        pub fn get() -> Self {
+            RcuCleanupHandle::<RcuContextMb>::get(&INSTANCE)
+        }
 
-// #[cfg(feature = "flavor-bp")]
-// mod bp {
-//     use super::*;
+        pub fn delete() {
+            RcuCleanupHandle::<RcuContextMb>::delete(&INSTANCE)
+        }
+    }
+}
 
-//     use crate::rcu::flavor::RcuContextBp;
+#[cfg(feature = "flavor-memb")]
+mod memb {
+    use super::*;
 
-//     impl_cleanup_for_context!(RcuContextBp);
-// }
+    use crate::rcu::flavor::RcuContextMemb;
 
-// #[cfg(feature = "flavor-mb")]
-// mod mb {
-//     use super::*;
+    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextMemb>>> = RwLock::new(None);
 
-//     use crate::rcu::flavor::RcuContextMb;
+    impl RcuCleanupSender<RcuContextMemb> {
+        pub fn get() -> Self {
+            RcuCleanupHandle::<RcuContextMemb>::get(&INSTANCE)
+        }
 
-//     impl_cleanup_for_context!(RcuContextMb);
-// }
+        pub fn delete() {
+            RcuCleanupHandle::<RcuContextMemb>::delete(&INSTANCE)
+        }
+    }
+}
 
-// #[cfg(feature = "flavor-memb")]
-// mod memb {
-//     use super::*;
+#[cfg(feature = "flavor-qsbr")]
+mod qsbr {
+    use super::*;
 
-//     use crate::rcu::flavor::RcuContextMemb;
+    use crate::rcu::flavor::RcuContextQsbr;
 
-//     impl_cleanup_for_context!(RcuContextMemb);
-// }
+    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextQsbr>>> = RwLock::new(None);
 
-// #[cfg(feature = "flavor-qsbr")]
-// mod qsbr {
-//     use super::*;
+    impl RcuCleanupSender<RcuContextQsbr> {
+        pub fn get() -> Self {
+            RcuCleanupHandle::<RcuContextQsbr>::get(&INSTANCE)
+        }
 
-//     use crate::rcu::flavor::RcuContextQsbr;
-
-//     impl_cleanup_for_context!(RcuContextQsbr);
-// }
+        pub fn delete() {
+            RcuCleanupHandle::<RcuContextQsbr>::delete(&INSTANCE)
+        }
+    }
+}
