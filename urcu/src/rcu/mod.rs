@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 use crate::rcu::api::RcuUnsafe;
 use crate::rcu::callback::{RcuCall, RcuDefer};
-use crate::rcu::cleanup::{RcuCleanup, RcuCleanupMut};
+use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
 
 /// This trait is used to manually poll the RCU grace period.
 pub trait RcuPoller {
@@ -255,8 +255,6 @@ macro_rules! define_rcu_context {
                     stringify!($flavor),
                 );
 
-                Self::cleanup_remove();
-
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is defer-registered at context's creation.
                 // SAFETY: The thread can't be in a RCU critical section if it's dropping.
@@ -317,11 +315,11 @@ macro_rules! define_rcu_context {
             }
 
             fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
-                Self::cleanup_send(callback);
+                RcuCleaner::<Self>::get().send_mut(callback);
             }
 
             fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
-                Self::cleanup_send_and_block(callback);
+                RcuCleaner::<Self>::get().send(callback).barrier();
             }
         }
 
