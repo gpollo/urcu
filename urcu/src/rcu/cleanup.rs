@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! This module implements a cleaner thread.
 //!
 //! The goal is to allow any thread (registered or not) to execute

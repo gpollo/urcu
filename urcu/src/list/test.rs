@@ -52,7 +52,7 @@ fn peek() {
     assert_eq!(list.front(&guard), Some(&10));
     assert!(!list.is_empty());
 
-    list.pop_back().unwrap().call_cleanup(&context);
+    list.pop_back().unwrap().safe_cleanup();
     assert_eq!(list.back(&guard), Some(&10));
     assert_eq!(list.front(&guard), Some(&10));
     assert!(!list.is_empty());

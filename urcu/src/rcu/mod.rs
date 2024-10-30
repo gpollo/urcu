@@ -256,7 +256,7 @@ macro_rules! define_rcu_context {
                     stringify!($flavor),
                 );
 
-                Self::cleanup_remove();
+                // Self::cleanup_remove();
 
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is defer-registered at context's creation.
@@ -318,11 +318,13 @@ macro_rules! define_rcu_context {
             }
 
             fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
-                Self::cleanup_send(callback);
+                // Self::cleanup_send(callback);
+                crate::rcu::cleanup2::RcuCleaner::<Self>::get().send_mut(callback);
             }
 
             fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
-                Self::cleanup_send_and_block(callback);
+                // Self::cleanup_send_and_block(callback);
+                crate::rcu::cleanup2::RcuCleaner::<Self>::get().send(callback).barrier();
             }
         }
 

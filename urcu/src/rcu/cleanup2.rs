@@ -7,7 +7,7 @@
 //! [`RcuRef`]: crate::rcu::reference::RcuRef
 
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::RwLock;
+use std::sync::{Once, RwLock};
 use std::thread::JoinHandle;
 
 use super::RcuContext;
@@ -18,34 +18,49 @@ pub type RcuCleanup<C> = Box<dyn FnOnce(&C) + Send + 'static>;
 /// Defines the cleanup callback signature.
 pub type RcuCleanupMut<C> = Box<dyn FnOnce(&mut C) + Send + 'static>;
 
-enum RcuCleanerCommand<C> {
+type ContextFn<C> = Box<dyn FnOnce() -> C + Send>;
+
+enum Command<C> {
     Execute(RcuCleanup<C>),
     ExecuteMut(RcuCleanupMut<C>),
     Barrier(Sender<()>),
     Shutdown,
 }
 
-struct RcuCleanerThread<C> {
-    commands: Receiver<RcuCleanerCommand<C>>,
+struct Thread<C> {
+    commands: Receiver<Command<C>>,
 }
 
-impl<C> RcuCleanerThread<C>
+impl<C> Thread<C>
 where
-    C: RcuContext + 'static,
+    C: 'static,
 {
-    fn start(commands: Receiver<RcuCleanerCommand<C>>) -> JoinHandle<()> {
-        std::thread::spawn(|| Self { commands }.run())
+    fn start(context: ContextFn<C>, commands: Receiver<Command<C>>) -> JoinHandle<()> {
+        std::thread::Builder::new()
+            .name(format!(
+                "urcu::cleanup::{}",
+                std::any::type_name::<C>()
+                    .split("::")
+                    .last()
+                    .unwrap()
+                    .replace("RcuContext", "")
+                    .to_lowercase()
+            ))
+            .spawn(move || Self { commands }.run(context))
+            .unwrap()
     }
 
-    fn run(self) {
-        let mut context = C::rcu_register().unwrap();
+    fn run(self, context: ContextFn<C>) {
+        log::debug!("launching cleanup thread");
+
+        let mut context = context();
 
         loop {
             match self.commands.recv() {
-                Ok(RcuCleanerCommand::Execute(callback)) => callback(&context),
-                Ok(RcuCleanerCommand::ExecuteMut(callback)) => callback(&mut context),
-                Ok(RcuCleanerCommand::Shutdown) => break,
-                Ok(RcuCleanerCommand::Barrier(sender)) => {
+                Ok(Command::Execute(callback)) => callback(&context),
+                Ok(Command::ExecuteMut(callback)) => callback(&mut context),
+                Ok(Command::Shutdown) => break,
+                Ok(Command::Barrier(sender)) => {
                     if let Err(e) = sender.send(()) {
                         log::error!("failed to execute cleanup barrier: {:?}", e);
                     }
@@ -61,25 +76,17 @@ where
     }
 }
 
-struct RcuCleanupHandle<C> {
+struct ThreadHandle<C> {
     thread: Option<JoinHandle<()>>,
-    callbacks: Sender<RcuCleanerCommand<C>>,
+    callbacks: Sender<Command<C>>,
 }
 
-impl<C> RcuCleanupHandle<C>
+impl<C> ThreadHandle<C>
 where
     C: RcuContext + 'static,
 {
-    fn try_get(instance: &RwLock<Option<Self>>) -> Option<RcuCleanupSender<C>> {
-        instance
-            .read()
-            .unwrap()
-            .as_ref()
-            .map(|handle| RcuCleanupSender(handle.callbacks.clone()))
-    }
-
-    fn set(instance: &RwLock<Option<Self>>) -> RcuCleanupSender<C> {
-        RcuCleanupSender(
+    fn create(instance: &RwLock<Option<Self>>, context: ContextFn<C>) -> RcuCleaner<C> {
+        RcuCleaner(
             instance
                 .write()
                 .unwrap()
@@ -87,7 +94,7 @@ where
                     let (tx, rx) = std::sync::mpsc::channel();
 
                     Self {
-                        thread: Some(RcuCleanerThread::start(rx)),
+                        thread: Some(Thread::start(context, rx)),
                         callbacks: tx,
                     }
                 })
@@ -96,18 +103,33 @@ where
         )
     }
 
-    fn get(instance: &RwLock<Option<Self>>) -> RcuCleanupSender<C> {
-        Self::try_get(instance).unwrap_or_else(|| Self::set(instance))
+    fn try_get(instance: &RwLock<Option<Self>>) -> Option<RcuCleaner<C>> {
+        instance
+            .read()
+            .unwrap()
+            .as_ref()
+            .map(|handle| RcuCleaner(handle.callbacks.clone()))
+    }
+
+    fn get(instance: &RwLock<Option<Self>>, context: ContextFn<C>) -> RcuCleaner<C> {
+        Self::try_get(instance).unwrap_or_else(|| Self::create(instance, context))
     }
 
     fn delete(instance: &RwLock<Option<Self>>) {
-        if let Some(handle) = instance.write().unwrap().take().and_then(|instance| {
-            instance
-                .callbacks
-                .send(RcuCleanerCommand::Shutdown)
-                .unwrap();
-            instance.thread
-        }) {
+        instance.write().unwrap().take();
+    }
+}
+
+impl<C> Drop for ThreadHandle<C> {
+    fn drop(&mut self) {
+        log::trace!("sending shutdown command");
+
+        if let Err(e) = self.callbacks.send(Command::Shutdown) {
+            log::error!("failed to send shutdown command: {:?}", e);
+            return;
+        }
+
+        if let Some(handle) = self.thread.take() {
             if let Err(e) = handle.join() {
                 log::error!("failed to join cleanup thread: {:?}", e);
             }
@@ -115,32 +137,46 @@ where
     }
 }
 
-pub struct RcuCleanupSender<C>(Sender<RcuCleanerCommand<C>>);
+pub struct RcuCleaner<C>(Sender<Command<C>>);
 
-impl<C> RcuCleanupSender<C> {
-    pub fn send(&self, callback: RcuCleanup<C>) {
-        let command = RcuCleanerCommand::Execute(callback);
+impl<C> RcuCleaner<C> {
+    pub fn send(&self, callback: RcuCleanup<C>) -> &Self {
+        log::trace!("sending callback command");
+
+        let command = Command::Execute(callback);
         if let Err(e) = self.0.send(command) {
             log::error!("failed to send execute command: {:?}", e);
         }
+
+        self
     }
 
-    pub fn send_mut(&self, callback: RcuCleanupMut<C>) {
-        let command = RcuCleanerCommand::ExecuteMut(callback);
+    pub fn send_mut(&self, callback: RcuCleanupMut<C>) -> &Self {
+        log::trace!("sending mutable callback command");
+
+        let command = Command::ExecuteMut(callback);
         if let Err(e) = self.0.send(command) {
             log::error!("failed to send execute command: {:?}", e);
         }
+
+        self
     }
 
-    pub fn barrier(&self) {
+    pub fn barrier(&self) -> &Self {
+        log::trace!("sending barrier command");
+
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let command = RcuCleanerCommand::Barrier(tx);
+        let command = Command::Barrier(tx);
         if let Err(e) = self.0.send(command) {
             log::error!("failed to send barrier command: {:?}", e);
         } else if let Err(e) = rx.recv() {
             log::error!("failed to wait for barrier: {:?}", e);
+        } else {
+            log::trace!("finished barrier command");
         }
+
+        self
     }
 }
 
@@ -150,15 +186,21 @@ mod bp {
 
     use crate::rcu::flavor::RcuContextBp;
 
-    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextBp>>> = RwLock::new(None);
+    static REGISTER_ATEXIT: Once = Once::new();
+    static INSTANCE: RwLock<Option<ThreadHandle<RcuContextBp>>> = RwLock::new(None);
 
-    impl RcuCleanupSender<RcuContextBp> {
-        pub fn get() -> Self {
-            RcuCleanupHandle::<RcuContextBp>::get(&INSTANCE)
+    impl RcuCleaner<RcuContextBp> {
+        extern "C" fn delete() {
+            ThreadHandle::<RcuContextBp>::delete(&INSTANCE);
         }
 
-        pub fn delete() {
-            RcuCleanupHandle::<RcuContextBp>::delete(&INSTANCE)
+        pub fn get() -> Self {
+            REGISTER_ATEXIT.call_once(|| unsafe {
+                assert_eq!(libc::atexit(Self::delete), 0);
+            });
+
+            let context = Box::new(|| RcuContextBp::rcu_register().unwrap());
+            ThreadHandle::<RcuContextBp>::get(&INSTANCE, context)
         }
     }
 }
@@ -169,15 +211,21 @@ mod mb {
 
     use crate::rcu::flavor::RcuContextMb;
 
-    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextMb>>> = RwLock::new(None);
+    static REGISTER_ATEXIT: Once = Once::new();
+    static INSTANCE: RwLock<Option<ThreadHandle<RcuContextMb>>> = RwLock::new(None);
 
-    impl RcuCleanupSender<RcuContextMb> {
-        pub fn get() -> Self {
-            RcuCleanupHandle::<RcuContextMb>::get(&INSTANCE)
+    impl RcuCleaner<RcuContextMb> {
+        extern "C" fn delete() {
+            ThreadHandle::<RcuContextMb>::delete(&INSTANCE);
         }
 
-        pub fn delete() {
-            RcuCleanupHandle::<RcuContextMb>::delete(&INSTANCE)
+        pub fn get() -> Self {
+            REGISTER_ATEXIT.call_once(|| unsafe {
+                assert_eq!(libc::atexit(Self::delete), 0);
+            });
+
+            let context = Box::new(|| RcuContextMb::rcu_register().unwrap());
+            ThreadHandle::<RcuContextMb>::get(&INSTANCE, context)
         }
     }
 }
@@ -188,15 +236,21 @@ mod memb {
 
     use crate::rcu::flavor::RcuContextMemb;
 
-    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextMemb>>> = RwLock::new(None);
+    static REGISTER_ATEXIT: Once = Once::new();
+    static INSTANCE: RwLock<Option<ThreadHandle<RcuContextMemb>>> = RwLock::new(None);
 
-    impl RcuCleanupSender<RcuContextMemb> {
-        pub fn get() -> Self {
-            RcuCleanupHandle::<RcuContextMemb>::get(&INSTANCE)
+    impl RcuCleaner<RcuContextMemb> {
+        extern "C" fn delete() {
+            ThreadHandle::<RcuContextMemb>::delete(&INSTANCE);
         }
 
-        pub fn delete() {
-            RcuCleanupHandle::<RcuContextMemb>::delete(&INSTANCE)
+        pub fn get() -> Self {
+            REGISTER_ATEXIT.call_once(|| unsafe {
+                assert_eq!(libc::atexit(Self::delete), 0);
+            });
+
+            let context = Box::new(|| RcuContextMemb::rcu_register().unwrap());
+            ThreadHandle::<RcuContextMemb>::get(&INSTANCE, context)
         }
     }
 }
@@ -207,15 +261,21 @@ mod qsbr {
 
     use crate::rcu::flavor::RcuContextQsbr;
 
-    static INSTANCE: RwLock<Option<RcuCleanupHandle<RcuContextQsbr>>> = RwLock::new(None);
+    static REGISTER_ATEXIT: Once = Once::new();
+    static INSTANCE: RwLock<Option<ThreadHandle<RcuContextQsbr>>> = RwLock::new(None);
 
-    impl RcuCleanupSender<RcuContextQsbr> {
-        pub fn get() -> Self {
-            RcuCleanupHandle::<RcuContextQsbr>::get(&INSTANCE)
+    impl RcuCleaner<RcuContextQsbr> {
+        extern "C" fn delete() {
+            ThreadHandle::<RcuContextQsbr>::delete(&INSTANCE);
         }
 
-        pub fn delete() {
-            RcuCleanupHandle::<RcuContextQsbr>::delete(&INSTANCE)
+        pub fn get() -> Self {
+            REGISTER_ATEXIT.call_once(|| unsafe {
+                assert_eq!(libc::atexit(Self::delete), 0);
+            });
+
+            let context = Box::new(|| RcuContextQsbr::rcu_register().unwrap());
+            ThreadHandle::<RcuContextQsbr>::get(&INSTANCE, context)
         }
     }
 }
