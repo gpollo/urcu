@@ -16,7 +16,6 @@ mod asserts {
 
     use crate::flavor::DefaultFlavor;
     use crate::hashmap::container::RcuHashMap;
-    use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
 
     mod rcu_hashmap {
@@ -63,19 +62,19 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultFlavor>: Sync);
     }
 }

@@ -7,9 +7,8 @@ use anyhow::Result;
 use crate::hashmap::iterator::Iter;
 use crate::hashmap::raw::RawMap;
 use crate::hashmap::reference::Ref;
-use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::RcuContext;
-use crate::{DefaultContext, RcuReadContext, RcuRef};
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::{RcuGuard, RcuReadContext, RcuRef};
 
 /// Defines a RCU lock-free hashmap.
 ///
@@ -33,35 +32,34 @@ use crate::{DefaultContext, RcuReadContext, RcuRef};
 /// non-registered thread may drop an `RcuHashMap<T>` without calling any RCU
 /// primitives since lifetime rules prevent any other thread from accessing an
 /// RCU reference.
-pub struct RcuHashMap<K, V, C = DefaultContext>(RawMap<K, V, C>)
+pub struct RcuHashMap<K, V, F = DefaultFlavor>(RawMap<K, V, F>)
 where
     K: Send + 'static,
     V: Send + 'static,
-    // TODO: Remove RcuReadContext constraint.
-    C: RcuReadContext + 'static;
+    F: RcuFlavor + 'static;
 
-impl<K, V, C> RcuHashMap<K, V, C>
+impl<K, V, F> RcuHashMap<K, V, F>
 where
     K: Send,
     V: Send,
-    C: RcuReadContext,
+    F: RcuFlavor,
 {
     /// Creates a new RCU hashmap.
-    pub fn new() -> Result<Arc<Self>>
-    where
-        C: RcuContext,
-    {
+    pub fn new() -> Result<Arc<Self>> {
         Ok(Arc::new(Self(RawMap::new()?)))
     }
 
     /// Inserts a key-value pair in the hashmap.
     ///
     /// If the hashmap did not have this key present, [`None`] is returned.
-    pub fn insert(&self, key: K, value: V, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C::Flavor>>
+    pub fn insert<G>(&self, key: K, value: V, guard: &G) -> Option<Ref<K, V, F>>
     where
         K: Send + Eq + Hash,
         V: Send,
+        G: RcuGuard<Flavor = F>,
     {
+        let _ = guard;
+
         // SAFETY: The read-side RCU lock is taken.
         // SAFETY: The RCU grace period is enforced through the RcuRef.
         let node = unsafe { self.0.add_replace(key, value) };
@@ -70,10 +68,13 @@ where
     }
 
     /// Returns `true` if the hashmap contains a value for the specified key.
-    pub fn contains(&self, key: &K, _guard: &C::Guard<'_>) -> bool
+    pub fn contains<G>(&self, key: &K, guard: &G) -> bool
     where
         K: Eq + Hash,
+        G: RcuGuard<Flavor = F>,
     {
+        let _ = guard;
+
         // SAFETY: The RCU read-side lock is taken.
         let mut iter = unsafe { self.0.lookup(key) };
 
@@ -81,14 +82,11 @@ where
     }
 
     /// Returns a reference to the value corresponding to the key.
-    pub fn get<'me, 'ctx, 'guard>(
-        &'me self,
-        key: &K,
-        _guard: &'guard C::Guard<'ctx>,
-    ) -> Option<&'guard V>
+    pub fn get<'me, 'guard, G>(&'me self, key: &K, _guard: &'guard G) -> Option<&'guard V>
     where
         'me: 'guard,
         K: Eq + Hash,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU read-side lock is taken.
         let mut iter = unsafe { self.0.lookup(key) };
@@ -98,11 +96,14 @@ where
     }
 
     /// Removes a key from the hashmap, returning the key-value pair if successful.
-    pub fn remove(&self, key: &K, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C::Flavor>>
+    pub fn remove<G>(&self, key: &K, guard: &G) -> Option<Ref<K, V, F>>
     where
         K: Send + Eq + Hash,
         V: Send,
+        G: RcuGuard<Flavor = F>,
     {
+        let _ = guard;
+
         // SAFETY: The RCU read-side lock is taken.
         let mut iter = unsafe { self.0.lookup(key) };
 
@@ -120,13 +121,13 @@ where
     }
 
     /// Returns an iterator visiting all key-value pairs in arbitrary order.
-    pub fn iter<'me, 'ctx, 'guard>(
-        &'me self,
-        _guard: &'guard C::Guard<'ctx>,
-    ) -> Iter<'guard, K, V, C>
+    pub fn iter<'me, 'guard, G>(&'me self, guard: &'guard G) -> Iter<'guard, K, V, F>
     where
         'me: 'guard,
+        G: RcuGuard<Flavor = F>,
     {
+        let _ = guard;
+
         Iter::new(
             // SAFETY: The read-side RCU lock is taken.
             unsafe { self.0.iter() },
@@ -134,23 +135,23 @@ where
     }
 }
 
-impl<K, V, C> Drop for RcuHashMap<K, V, C>
+impl<K, V, F> Drop for RcuHashMap<K, V, F>
 where
     K: Send + 'static,
     V: Send + 'static,
-    C: RcuReadContext + 'static,
+    F: RcuFlavor + 'static,
 {
     fn drop(&mut self) {
         let mut raw = self.0.clone();
 
-        C::Flavor::rcu_cleanup_and_block(Box::new(move |context| {
+        F::rcu_cleanup_and_block(Box::new(move |context| {
             let guard = context.rcu_read_lock();
 
             // SAFETY: The read-side RCU lock is taken.
             unsafe { raw.del_all() }
                 .iter()
                 .copied()
-                .map(Ref::<K, V, C::Flavor>::new)
+                .map(Ref::<K, V, F>::new)
                 .collect::<Vec<_>>()
                 .safe_cleanup();
 

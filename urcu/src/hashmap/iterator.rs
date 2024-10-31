@@ -3,18 +3,18 @@ use crate::hashmap::raw::RawIter;
 /// An iterator over the nodes of an [`RcuHashMap`].
 ///
 /// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
-pub struct Iter<'guard, K, V, C>(RawIter<'guard, K, V, C>)
+pub struct Iter<'guard, K, V, F>(RawIter<'guard, K, V, F>)
 where
     K: 'guard,
     V: 'guard;
 
-impl<'guard, K, V, C> Iter<'guard, K, V, C> {
-    pub fn new(raw: RawIter<'guard, K, V, C>) -> Self {
+impl<'guard, K, V, F> Iter<'guard, K, V, F> {
+    pub fn new(raw: RawIter<'guard, K, V, F>) -> Self {
         Self(raw)
     }
 }
 
-impl<'guard, K, V, C> Iterator for Iter<'guard, K, V, C> {
+impl<'guard, K, V, F> Iterator for Iter<'guard, K, V, F> {
     type Item = (&'guard K, &'guard V);
 
     fn next(&mut self) -> Option<Self::Item> {
