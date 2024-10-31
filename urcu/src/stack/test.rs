@@ -1,12 +1,17 @@
 use std::ops::Deref;
 
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
 use crate::rcu::reference::RcuRef;
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::{DefaultContext, RcuReadContext};
 use crate::stack::container::RcuStack;
 
 #[test]
 fn peek() {
-    let context = DefaultContext::rcu_register().unwrap();
+    let context = DefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let stack = RcuStack::<u32>::new();
     let guard = context.rcu_read_lock();
 
@@ -48,7 +53,11 @@ fn peek() {
 
 #[test]
 fn iter() {
-    let context = DefaultContext::rcu_register().unwrap();
+    let context = DefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let stack = RcuStack::<u32>::new();
     let guard = context.rcu_read_lock();
 
@@ -100,7 +109,7 @@ fn iter() {
 
 #[test]
 fn iter_ref() {
-    fn pop_all_nodes(context: &mut DefaultContext, stack: &RcuStack<u32>) -> Vec<u32> {
+    fn pop_all_nodes(context: &mut DefaultContext<true>, stack: &RcuStack<u32>) -> Vec<u32> {
         {
             let guard = context.rcu_read_lock();
             stack.pop_all(&guard).collect::<Vec<_>>()
@@ -112,7 +121,11 @@ fn iter_ref() {
         .collect::<Vec<_>>()
     }
 
-    let mut context = DefaultContext::rcu_register().unwrap();
+    let mut context = DefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let stack = RcuStack::<u32>::new();
 
     assert_eq!(pop_all_nodes(&mut context, &stack), vec![]);

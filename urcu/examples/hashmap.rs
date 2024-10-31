@@ -4,8 +4,14 @@ use std::sync::Arc;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use urcu::context::RcuContextMemb;
-use urcu::{RcuContext, RcuHashMap, RcuReadContext, RcuRef};
+use urcu::{
+    DefaultContext,
+    DefaultFlavor,
+    RcuFlavor,
+    RcuHashMap,
+    RcuReadContext,
+    RcuRef,
+};
 
 fn key_to_value(key: u32) -> u64 {
     (key * (key + 1337)) as u64
@@ -36,7 +42,11 @@ impl PublisherThread {
     }
 
     fn run(self) {
-        let context = RcuContextMemb::rcu_register().unwrap();
+        let context = DefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .register_thread()
+            .unwrap();
+
         let mut node_count = 0u128;
 
         while !self.exit_signal.load(Ordering::Acquire) {
@@ -54,7 +64,7 @@ impl PublisherThread {
         self.publisher_count.fetch_sub(1, Ordering::Release);
     }
 
-    fn publish(&self, keyset: &[u32], context: &RcuContextMemb) -> u128 {
+    fn publish(&self, keyset: &[u32], context: &DefaultContext<true>) -> u128 {
         let mut node_inserted = 0u128;
 
         for key in keyset {
@@ -91,7 +101,12 @@ impl ConsumerThread {
     }
 
     fn run(self) {
-        let mut context = RcuContextMemb::rcu_register().unwrap();
+        let mut context = DefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .with_defer_context()
+            .register_thread()
+            .unwrap();
+
         let mut node_count = 0u128;
 
         loop {
@@ -112,7 +127,7 @@ impl ConsumerThread {
         );
     }
 
-    fn consume(&self, keyset: &[u32], context: &mut RcuContextMemb) -> u128 {
+    fn consume(&self, keyset: &[u32], context: &mut DefaultContext<true, true>) -> u128 {
         let mut node_removed = 0u128;
 
         for key in keyset {

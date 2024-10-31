@@ -205,10 +205,7 @@ macro_rules! define_rcu_context {
         /// There can only be 1 instance per thread.
         /// The thread will be registered upon creation.
         /// It will be unregistered upon dropping.
-        ///
-        // TODO: set READ = false
-        // TODO: set DEFER = false
-        pub struct $context<const READ: bool = true, const DEFER: bool = true>(
+        pub struct $context<const READ: bool = false, const DEFER: bool = false>(
             PhantomUnsend,
             PhantomUnsync,
         );
@@ -433,11 +430,13 @@ pub mod context {
 
 /// Defines the default RCU context.
 #[cfg(feature = "flavor-memb")]
-pub type DefaultContext = context::memb::RcuContextMemb;
+pub type DefaultContext<const READ: bool = false, const DEFER: bool = false> =
+    context::memb::RcuContextMemb<READ, DEFER>;
 
 /// Defines the default RCU context.
 #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
-pub type DefaultContext = context::mb::RcuContextMb;
+pub type DefaultContext<const READ: bool = false, const DEFER: bool = false> =
+    context::mb::RcuContextMb<READ, DEFER>;
 
 /// Defines the default RCU context.
 #[cfg(all(
@@ -445,7 +444,8 @@ pub type DefaultContext = context::mb::RcuContextMb;
     not(feature = "flavor-mb"),
     feature = "flavor-bp"
 ))]
-pub type DefaultContext = context::bp::RcuContextBp;
+pub type DefaultContext<const READ: bool = false, const DEFER: bool = false> =
+    context::bp::RcuContextBp<READ, DEFER>;
 
 /// Defines the default RCU context.
 #[cfg(all(
@@ -454,7 +454,8 @@ pub type DefaultContext = context::bp::RcuContextBp;
     not(feature = "flavor-bp"),
     feature = "flavor-qsbr"
 ))]
-pub type DefaultContext = context::qsbr::RcuContextQsbr;
+pub type DefaultContext<const READ: bool = false, const DEFER: bool = false> =
+    context::qsbr::RcuContextQsbr<READ, DEFER>;
 
 /// Returns an immutable RCU-protected pointer.
 ///
