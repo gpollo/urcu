@@ -14,7 +14,8 @@ mod asserts {
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::rcu::DefaultContext;
+    use crate::rcu::context::RcuGuardMemb;
+    use crate::rcu::flavor::DefaultFlavor;
     use crate::stack::container::RcuStack;
     use crate::utility::asserts::*;
 
@@ -22,20 +23,20 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuStack<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuStack<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuStack<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuStack<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuStack<NotSendButSync, DefaultContext>: Send);
-        assert_impl_all!(RcuStack<NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuStack<NotSendButSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuStack<NotSendButSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuStack<SendAndSync, DefaultContext>: Send);
-        assert_impl_all!(RcuStack<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuStack<SendAndSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuStack<SendAndSync, DefaultFlavor>: Sync);
     }
 
     mod rcu_list_ref_owned {
@@ -62,39 +63,39 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, '_, NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, '_, NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, '_, SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, '_, SendButNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb>: Send);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, '_, NotSendButSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, '_, NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, '_, SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Iter<'_, '_, SendAndSync, DefaultContext>: Sync);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb>: Send);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb>: Sync);
     }
 
     mod rcu_list_iter_ref {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(IterRef<NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(IterRef<NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(IterRef<NotSendNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(IterRef<NotSendNotSync, DefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(IterRef<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(IterRef<SendButNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(IterRef<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(IterRef<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(IterRef<NotSendButSync, DefaultContext>: Send);
-        assert_not_impl_all!(IterRef<NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(IterRef<NotSendButSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(IterRef<NotSendButSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(IterRef<SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(IterRef<SendAndSync, DefaultContext>: Sync);
+        assert_not_impl_all!(IterRef<SendAndSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(IterRef<SendAndSync, DefaultFlavor>: Sync);
     }
 }
