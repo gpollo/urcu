@@ -1,5 +1,5 @@
 use crate::rcu::callback::{RcuCallFn, RcuDeferFn};
-use crate::rcu::{RcuContext, RcuReadContext};
+use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
 
 /// This trait defines a RCU reference that can be owned after a RCU grace period.
 ///
@@ -20,7 +20,7 @@ use crate::rcu::{RcuContext, RcuReadContext};
 /// Because an [`RcuRef`] can be sent to any thread, we cannot guarantee that a
 /// thread executing [`Drop::drop`] is properly registered.
 ///
-/// * We cannot call [`RcuContext::rcu_defer`] since we can't enforce that the
+/// * We cannot call [`RcuDeferContext::rcu_defer`] since we can't enforce that the
 ///   thread is registered with the RCU defer mecanisms[^mborrow].
 /// * We cannot call [`RcuReadContext::rcu_call`] since we can't enforce that the
 ///   thread is registered with the RCU read mecanisms[^cborrow].
@@ -71,7 +71,7 @@ pub unsafe trait RcuRef<C> {
     fn defer_cleanup(self, context: &mut C)
     where
         Self: Sized,
-        C: RcuContext,
+        C: RcuDeferContext,
     {
         context.rcu_defer(RcuDeferFn::<_, C>::new(move || {
             // SAFETY: The caller already executed a RCU syncronization.

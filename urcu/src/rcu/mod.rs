@@ -34,12 +34,9 @@ pub trait RcuPoller {
 ///
 /// #### Safety
 ///
-/// 1. You must enforce single context per thread for a specific RCU flavor.
-///    Failure to do so can lead to a deadlock if a thread acquires a RCU read lock
-///    from one context and tries to do a RCU syncronization from another context.
-/// 2. For deferred callbacks (`rcu_defer`), a barrier (`defer_barrier`) should be
-///    executed before cleaning up the context. Failure to do so might results in
-///    memory leaks and object cleanups that don't happen.
+/// You must enforce single context per thread for a specific RCU flavor.
+/// Failure to do so can lead to a deadlock if a thread acquires a RCU read lock
+/// from one context and tries to do a RCU syncronization from another context.
 pub unsafe trait RcuContext {
     /// Defines an API for unchecked RCU primitives.
     type Flavor: RcuFlavor;
@@ -71,17 +68,6 @@ pub unsafe trait RcuContext {
     ///
     /// It may be called in a RCU critical section.
     fn rcu_synchronize_poller(&self) -> Self::Poller<'_>;
-
-    /// Configures a callback to be called after the next RCU grace period is finished.
-    ///
-    /// #### Note
-    ///
-    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
-    ///
-    /// The callback is guaranteed to be executed on the current thread.
-    fn rcu_defer<F>(&mut self, callback: Box<F>)
-    where
-        F: RcuDefer;
 
     /// Configures a callback to be called after the next RCU grace period is finished.
     ///
@@ -136,6 +122,26 @@ pub unsafe trait RcuReadContext: RcuContext {
     fn rcu_call<F>(&self, callback: Box<F>)
     where
         F: RcuCall + Send + 'static;
+}
+
+/// This trait defines the per-thread RCU defer context.
+///
+/// #### Safety
+///
+/// For deferred callbacks (`rcu_defer`), a barrier (`defer_barrier`) should be
+/// executed before cleaning up the context. Failure to do so might results in
+/// memory leaks and object cleanups that don't happen.
+pub unsafe trait RcuDeferContext: RcuContext {
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// #### Note
+    ///
+    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
+    ///
+    /// The callback is guaranteed to be executed on the current thread.
+    fn rcu_defer<F>(&mut self, callback: Box<F>)
+    where
+        F: RcuDefer;
 }
 
 macro_rules! define_rcu_guard {
@@ -276,8 +282,7 @@ macro_rules! define_rcu_context {
 
         /// #### Safety
         ///
-        /// 1. There can only be 1 instance per thread.
-        /// 3. `defer_rcu` barrier is called before cleanups.
+        /// There can only be 1 instance per thread.
         unsafe impl RcuContext for $context {
             type Flavor = $flavor;
 
@@ -300,20 +305,6 @@ macro_rules! define_rcu_context {
                 $poller::new(self)
             }
 
-            fn rcu_defer<F>(&mut self, callback: Box<F>)
-            where
-                F: RcuDefer,
-            {
-                callback.configure(|mut ptr, func| {
-                    // SAFETY: The thread is initialized at context's creation.
-                    // SAFETY: The thread is defer-registered at context's creation.
-                    // SAFETY: The thread executes a defer-barrier at context's drop.
-                    // SAFETY: The thread cannot be in a critical section because of `&mut self`.
-                    // SAFETY: The pointers validity is guaranteed by `RcuDefer`.
-                    unsafe { $flavor::unchecked_rcu_defer_call(Some(func), ptr.as_mut()) };
-                });
-            }
-
             fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
                 RcuCleaner::<Self::Flavor>::get().send_mut(callback);
             }
@@ -326,7 +317,6 @@ macro_rules! define_rcu_context {
         /// #### Safety
         ///
         /// `call_rcu` barrier is called before cleanups.
-        ///
         unsafe impl RcuReadContext for $context {
             type Guard<'a> = $guard<'a>;
 
@@ -344,6 +334,25 @@ macro_rules! define_rcu_context {
                     // SAFETY: The thread executes a call-barrier at context's drop.
                     // SAFETY: The pointers validity is guaranteed by `RcuCall`.
                     unsafe { $flavor::unchecked_rcu_call(Some(func), head.as_mut()) };
+                });
+            }
+        }
+
+        /// #### Safety
+        ///
+        /// `defer_rcu` barrier is called before cleanups.
+        unsafe impl RcuDeferContext for $context {
+            fn rcu_defer<F>(&mut self, callback: Box<F>)
+            where
+                F: RcuDefer,
+            {
+                callback.configure(|mut ptr, func| {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is defer-registered at context's creation.
+                    // SAFETY: The thread executes a defer-barrier at context's drop.
+                    // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+                    // SAFETY: The pointers validity is guaranteed by `RcuDefer`.
+                    unsafe { $flavor::unchecked_rcu_defer_call(Some(func), ptr.as_mut()) };
                 });
             }
         }
