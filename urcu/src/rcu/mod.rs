@@ -9,7 +9,13 @@ use std::marker::PhantomData;
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::flavor::RcuFlavor;
 
-/// This trait is used to manually poll the RCU grace period.
+/// This trait defines a guard for a read-side lock.
+pub trait RcuGuard {
+    /// Defines the flavor of the guard.
+    type Flavor: RcuFlavor;
+}
+
+/// This trait defines a poller of the grace period.
 pub trait RcuPoller {
     /// Checks if the grace period is over for this poller.
     fn grace_period_finished(&self) -> bool;
@@ -136,6 +142,10 @@ macro_rules! define_rcu_guard {
 
                 Self(PhantomData)
             }
+        }
+
+        impl<'a> RcuGuard for $guard<'a> {
+            type Flavor = $flavor;
         }
 
         impl<'a> Drop for $guard<'a> {
