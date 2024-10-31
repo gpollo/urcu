@@ -65,14 +65,14 @@ impl<T, C> RcuQueue<T, C> {
     }
 
     /// Removes an element to the front of the queue, if any.
-    pub fn pop(&self, _guard: &C::Guard<'_>) -> Option<Ref<T, C>>
+    pub fn pop(&self, _guard: &C::Guard<'_>) -> Option<Ref<T, C::Flavor>>
     where
         T: Send,
         C: RcuReadContext,
     {
         // SAFETY: The RCU read-lock is taken.
         // SAFETY: The RCU grace period is enforced using `Ref<T, C>`.
-        NonNull::new(unsafe { self.raw.dequeue() }).map(|node| Ref::<T, C>::new(node))
+        NonNull::new(unsafe { self.raw.dequeue() }).map(Ref::<T, C::Flavor>::new)
     }
 }
 

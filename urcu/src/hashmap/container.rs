@@ -57,7 +57,7 @@ where
     /// Inserts a key-value pair in the hashmap.
     ///
     /// If the hashmap did not have this key present, [`None`] is returned.
-    pub fn insert(&self, key: K, value: V, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C>>
+    pub fn insert(&self, key: K, value: V, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C::Flavor>>
     where
         K: Send + Eq + Hash,
         V: Send,
@@ -98,7 +98,7 @@ where
     }
 
     /// Removes a key from the hashmap, returning the key-value pair if successful.
-    pub fn remove(&self, key: &K, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C>>
+    pub fn remove(&self, key: &K, _guard: &C::Guard<'_>) -> Option<Ref<K, V, C::Flavor>>
     where
         K: Send + Eq + Hash,
         V: Send,
@@ -150,7 +150,7 @@ where
             unsafe { raw.del_all() }
                 .iter()
                 .copied()
-                .map(Ref::<K, V, C>::new)
+                .map(Ref::<K, V, C::Flavor>::new)
                 .collect::<Vec<_>>()
                 .safe_cleanup();
 

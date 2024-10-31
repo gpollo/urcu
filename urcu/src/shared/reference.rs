@@ -2,8 +2,9 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::reference::RcuRef;
-use crate::{utility::*, RcuContext};
+use crate::utility::*;
 
 /// An owned RCU reference to a element removed from a container.
 pub struct BoxRefOwned<T>(Box<T>);
@@ -30,20 +31,20 @@ unsafe impl<T: Send> Send for BoxRefOwned<T> {}
 unsafe impl<T: Sync> Sync for BoxRefOwned<T> {}
 
 /// A RCU reference to a element removed from a container.
-pub struct BoxRef<T, C>
+pub struct BoxRef<T, F>
 where
     T: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     ptr: *mut T,
-    _unsend: PhantomUnsend<(T, C)>,
-    _unsync: PhantomUnsync<(T, C)>,
+    _unsend: PhantomUnsend<(T, F)>,
+    _unsync: PhantomUnsync<(T, F)>,
 }
 
-impl<T, C> BoxRef<T, C>
+impl<T, F> BoxRef<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     pub(crate) fn new(ptr: NonNull<T>) -> Self {
         Self {
@@ -59,10 +60,10 @@ where
 /// * The underlying reference is cleaned up upon dropping.
 /// * There may be immutable borrows to the underlying reference.
 /// * There cannot be mutable borrows to the underlying reference.
-unsafe impl<T, C> RcuRef<C> for BoxRef<T, C>
+unsafe impl<T, F> RcuRef<F> for BoxRef<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Output = BoxRefOwned<T>;
 
@@ -80,17 +81,17 @@ where
 /// #### Safety
 ///
 /// An RCU reference can be sent to another thread if `T` implements [`Send`].
-unsafe impl<T, C> Send for BoxRef<T, C>
+unsafe impl<T, F> Send for BoxRef<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
-impl<T, C> Drop for BoxRef<T, C>
+impl<T, F> Drop for BoxRef<T, F>
 where
     T: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     fn drop(&mut self) {
         if let Some(ptr) = NonNull::new(self.ptr) {
@@ -99,10 +100,10 @@ where
     }
 }
 
-impl<T, C> Deref for BoxRef<T, C>
+impl<T, F> Deref for BoxRef<T, F>
 where
     T: Send + Deref,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Target = T::Target;
 

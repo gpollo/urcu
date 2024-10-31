@@ -7,19 +7,19 @@ mod asserts {
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::rcu::DefaultContext;
+    use crate::rcu::flavor::DefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_ref {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(BoxRef<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(BoxRef<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(BoxRef<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(BoxRef<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(BoxRef<SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(BoxRef<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(BoxRef<SendAndSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(BoxRef<SendAndSync, DefaultFlavor>: Sync);
     }
 
     mod rcu_ref_owned {

@@ -14,6 +14,7 @@ mod asserts {
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
+    use crate::flavor::DefaultFlavor;
     use crate::hashmap::container::RcuHashMap;
     use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
@@ -30,12 +31,12 @@ mod asserts {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(Ref<SendAndSync, SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Ref<SendAndSync, SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(Ref<SendAndSync, SendAndSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendAndSync, SendAndSync, DefaultFlavor>: Sync);
     }
 
     mod rcu_hashmap_ref_owned {

@@ -124,14 +124,14 @@ impl<T, C> RcuList<T, C> {
     /// #### Note
     ///
     /// This operation may block.
-    pub fn pop_back(&self) -> Result<Option<Ref<T, C>>>
+    pub fn pop_back(&self) -> Result<Option<Ref<T, C::Flavor>>>
     where
         T: Send,
         C: RcuContext,
     {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
-            // SAFETY: The RCU grace period is enforced using `Ref<T, C>`.
+            // SAFETY: The RCU grace period is enforced using `Ref<T, F>`.
             let node = unsafe { self.raw.remove_back() };
 
             NonNull::new(node).map(Ref::new)
@@ -143,14 +143,14 @@ impl<T, C> RcuList<T, C> {
     /// #### Note
     ///
     /// This operation may block.
-    pub fn pop_front(&self) -> Result<Option<Ref<T, C>>>
+    pub fn pop_front(&self) -> Result<Option<Ref<T, C::Flavor>>>
     where
         T: Send,
         C: RcuContext,
     {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
-            // SAFETY: The RCU grace period is enforced using `Ref<T, C>`.
+            // SAFETY: The RCU grace period is enforced using `Ref<T, F>`.
             let node = unsafe { self.raw.remove_front() };
 
             NonNull::new(node).map(Ref::new)
