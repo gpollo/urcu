@@ -176,7 +176,7 @@ impl<C> RcuCleaner<C> {
 
 macro_rules! impl_cleanup_for_context {
     ($context:ident) => {
-        use crate::rcu::flavor::$context;
+        use crate::rcu::context::$context;
 
         static REGISTER_ATEXIT: Once = Once::new();
         static INSTANCE: RwLock<Option<ThreadHandle<$context>>> = RwLock::new(None);

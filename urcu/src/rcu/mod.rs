@@ -1,14 +1,14 @@
-pub(crate) mod api;
 pub(crate) mod callback;
 pub(crate) mod cleanup;
+pub(crate) mod flavor;
 pub(crate) mod reference;
 
 use std::cell::Cell;
 use std::marker::PhantomData;
 
-use crate::rcu::api::RcuUnsafe;
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
+use crate::rcu::flavor::RcuFlavor;
 
 /// This trait is used to manually poll the RCU grace period.
 pub trait RcuPoller {
@@ -42,7 +42,7 @@ pub trait RcuPoller {
 ///    memory leaks and object cleanups that don't happen.
 pub unsafe trait RcuContext {
     /// Defines an API for unchecked RCU primitives.
-    type Unsafe: RcuUnsafe;
+    type Flavor: RcuFlavor;
 
     /// Defines a grace period poller;
     type Poller<'a>: RcuPoller + 'a
@@ -139,8 +139,8 @@ pub unsafe trait RcuReadContext: RcuContext {
 }
 
 macro_rules! define_rcu_guard {
-    ($flavor:ident, $guard:ident, $unsafe:ident, $context:ident) => {
-        #[doc = concat!("Defines a guard for a RCU critical section (`liburcu-", stringify!($flavor), "`).")]
+    ($kind:ident, $guard:ident, $flavor:ident, $context:ident) => {
+        #[doc = concat!("Defines a guard for a RCU critical section (`liburcu-", stringify!($kind), "`).")]
         #[allow(dead_code)]
         pub struct $guard<'a>(PhantomData<&'a $context>);
 
@@ -149,7 +149,7 @@ macro_rules! define_rcu_guard {
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
                 // SAFETY: The critical section is unlocked at guard's drop.
-                unsafe { $unsafe::unchecked_rcu_read_lock() };
+                unsafe { $flavor::unchecked_rcu_read_lock() };
 
                 Self(PhantomData)
             }
@@ -160,15 +160,15 @@ macro_rules! define_rcu_guard {
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
                 // SAFETY: The critical section is locked at guard's creation.
-                unsafe { $unsafe::unchecked_rcu_read_unlock() };
+                unsafe { $flavor::unchecked_rcu_read_unlock() };
             }
         }
     };
 }
 
 macro_rules! define_rcu_poller {
-    ($flavor:ident, $poller:ident, $unsafe:ident, $context:ident) => {
-        #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($flavor), "`).")]
+    ($kind:ident, $poller:ident, $flavor:ident, $context:ident) => {
+        #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($kind), "`).")]
         #[allow(dead_code)]
         pub struct $poller<'a>(PhantomData<&'a $context>, urcu_sys::RcuPollState);
 
@@ -177,7 +177,7 @@ macro_rules! define_rcu_poller {
                 Self(PhantomData, {
                     // SAFETY: The thread is initialized at context's creation.
                     // SAFETY: The thread is read-registered at context's creation.
-                    unsafe { $unsafe::unchecked_rcu_poll_start() }
+                    unsafe { $flavor::unchecked_rcu_poll_start() }
                 })
             }
         }
@@ -187,15 +187,15 @@ macro_rules! define_rcu_poller {
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
                 // SAFETY: The handle is created at poller's creation.
-                unsafe { $unsafe::unchecked_rcu_poll_check(self.1) }
+                unsafe { $flavor::unchecked_rcu_poll_check(self.1) }
             }
         }
     };
 }
 
 macro_rules! define_rcu_context {
-    ($flavor:ident, $context:ident, $unsafe:ident, $guard:ident, $poller:ident) => {
-        #[doc = concat!("Defines a RCU context for the current thread (`liburcu-", stringify!($flavor), "`).")]
+    ($kind:ident, $context:ident, $flavor:ident, $guard:ident, $poller:ident) => {
+        #[doc = concat!("Defines a RCU context for the current thread (`liburcu-", stringify!($kind), "`).")]
         ///
         /// #### Note
         ///
@@ -224,22 +224,22 @@ macro_rules! define_rcu_context {
                         "registering thread '{}' ({}) with RCU (liburcu-{})",
                         std::thread::current().name().unwrap_or("<unnamed>"),
                         unsafe { libc::gettid() },
-                        stringify!($flavor),
+                        stringify!($kind),
                     );
 
                     // SAFETY: Can only be called once per thread.
                     // SAFETY: It is the first RCU call for a thread.
-                    unsafe { $unsafe::unchecked_rcu_init() };
+                    unsafe { $flavor::unchecked_rcu_init() };
 
                     // SAFETY: The thread is initialized.
                     // SAFETY: The thread is not read-registered.
                     // SAFETY: The thread is read-unregistered at context's drop.
-                    unsafe { $unsafe::unchecked_rcu_read_register_thread() };
+                    unsafe { $flavor::unchecked_rcu_read_register_thread() };
 
                     // SAFETY: The thread is initialized.
                     // SAFETY: The thread is not defer-registered.
                     // SAFETY: The thread is read-unregistered at context's drop.
-                    unsafe { $unsafe::unchecked_rcu_defer_register_thread() };
+                    unsafe { $flavor::unchecked_rcu_defer_register_thread() };
 
                     Some(Self(PhantomData))
                 })
@@ -252,25 +252,25 @@ macro_rules! define_rcu_context {
                     "unregistering thread '{}' ({}) with RCU (liburcu-{})",
                     std::thread::current().name().unwrap_or("<unnamed>"),
                     unsafe { libc::gettid() },
-                    stringify!($flavor),
+                    stringify!($kind),
                 );
 
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is defer-registered at context's creation.
                 // SAFETY: The thread can't be in a RCU critical section if it's dropping.
-                unsafe { $unsafe::unchecked_rcu_defer_barrier() };
+                unsafe { $flavor::unchecked_rcu_defer_barrier() };
 
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is defer-registered at context's creation.
-                unsafe { $unsafe::unchecked_rcu_defer_unregister_thread() };
+                unsafe { $flavor::unchecked_rcu_defer_unregister_thread() };
 
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
-                unsafe { $unsafe::unchecked_rcu_call_barrier() };
+                unsafe { $flavor::unchecked_rcu_call_barrier() };
 
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
-                unsafe { $unsafe::unchecked_rcu_read_unregister_thread() };
+                unsafe { $flavor::unchecked_rcu_read_unregister_thread() };
             }
         }
 
@@ -279,7 +279,7 @@ macro_rules! define_rcu_context {
         /// 1. There can only be 1 instance per thread.
         /// 3. `defer_rcu` barrier is called before cleanups.
         unsafe impl RcuContext for $context {
-            type Unsafe = $unsafe;
+            type Flavor = $flavor;
 
             type Poller<'a> = $poller<'a>;
 
@@ -293,7 +293,7 @@ macro_rules! define_rcu_context {
             fn rcu_synchronize(&mut self) {
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread cannot be in a critical section because of `&mut self`.
-                unsafe { $unsafe::unchecked_rcu_synchronize() };
+                unsafe { $flavor::unchecked_rcu_synchronize() };
             }
 
             fn rcu_synchronize_poller(&self) -> Self::Poller<'_> {
@@ -310,7 +310,7 @@ macro_rules! define_rcu_context {
                     // SAFETY: The thread executes a defer-barrier at context's drop.
                     // SAFETY: The thread cannot be in a critical section because of `&mut self`.
                     // SAFETY: The pointers validity is guaranteed by `RcuDefer`.
-                    unsafe { $unsafe::unchecked_rcu_defer_call(Some(func), ptr.as_mut()) };
+                    unsafe { $flavor::unchecked_rcu_defer_call(Some(func), ptr.as_mut()) };
                 });
             }
 
@@ -343,50 +343,50 @@ macro_rules! define_rcu_context {
                     // SAFETY: The thread is read-registered at context's creation.
                     // SAFETY: The thread executes a call-barrier at context's drop.
                     // SAFETY: The pointers validity is guaranteed by `RcuCall`.
-                    unsafe { $unsafe::unchecked_rcu_call(Some(func), head.as_mut()) };
+                    unsafe { $flavor::unchecked_rcu_call(Some(func), head.as_mut()) };
                 });
             }
         }
     };
 }
 
-pub mod flavor {
+pub mod context {
     use super::*;
 
     #[cfg(feature = "flavor-bp")]
     pub(crate) mod bp {
         use super::*;
 
-        pub use crate::rcu::api::RcuUnsafeBp;
+        pub use crate::rcu::flavor::RcuFlavorBp;
 
-        define_rcu_guard!(bp, RcuGuardBp, RcuUnsafeBp, RcuContextBp);
-        define_rcu_poller!(bp, RcuPollerBp, RcuUnsafeBp, RcuContextBp);
-        define_rcu_context!(bp, RcuContextBp, RcuUnsafeBp, RcuGuardBp, RcuPollerBp);
+        define_rcu_guard!(bp, RcuGuardBp, RcuFlavorBp, RcuContextBp);
+        define_rcu_poller!(bp, RcuPollerBp, RcuFlavorBp, RcuContextBp);
+        define_rcu_context!(bp, RcuContextBp, RcuFlavorBp, RcuGuardBp, RcuPollerBp);
     }
 
     #[cfg(feature = "flavor-mb")]
     pub(crate) mod mb {
         use super::*;
 
-        pub use crate::rcu::api::RcuUnsafeMb;
+        pub use crate::rcu::flavor::RcuFlavorMb;
 
-        define_rcu_guard!(mb, RcuGuardMb, RcuUnsafeMb, RcuContextMb);
-        define_rcu_poller!(mb, RcuPollerMb, RcuUnsafeMb, RcuContextMb);
-        define_rcu_context!(mb, RcuContextMb, RcuUnsafeMb, RcuGuardMb, RcuPollerMb);
+        define_rcu_guard!(mb, RcuGuardMb, RcuFlavorMb, RcuContextMb);
+        define_rcu_poller!(mb, RcuPollerMb, RcuFlavorMb, RcuContextMb);
+        define_rcu_context!(mb, RcuContextMb, RcuFlavorMb, RcuGuardMb, RcuPollerMb);
     }
 
     #[cfg(feature = "flavor-memb")]
     pub(crate) mod memb {
         use super::*;
 
-        pub use crate::rcu::api::RcuUnsafeMemb;
+        pub use crate::rcu::flavor::RcuFlavorMemb;
 
-        define_rcu_guard!(memb, RcuGuardMemb, RcuUnsafeMemb, RcuContextMemb);
-        define_rcu_poller!(memb, RcuPollerMemb, RcuUnsafeMemb, RcuContextMemb);
+        define_rcu_guard!(memb, RcuGuardMemb, RcuFlavorMemb, RcuContextMemb);
+        define_rcu_poller!(memb, RcuPollerMemb, RcuFlavorMemb, RcuContextMemb);
         define_rcu_context!(
             memb,
             RcuContextMemb,
-            RcuUnsafeMemb,
+            RcuFlavorMemb,
             RcuGuardMemb,
             RcuPollerMemb
         );
@@ -396,14 +396,14 @@ pub mod flavor {
     pub(crate) mod qsbr {
         use super::*;
 
-        pub use crate::rcu::api::RcuUnsafeQsbr;
+        pub use crate::rcu::flavor::RcuFlavorQsbr;
 
-        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuUnsafeQsbr, RcuContextQsbr);
-        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuUnsafeQsbr, RcuContextQsbr);
+        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuFlavorQsbr, RcuContextQsbr);
+        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuFlavorQsbr, RcuContextQsbr);
         define_rcu_context!(
             qsbr,
             RcuContextQsbr,
-            RcuUnsafeQsbr,
+            RcuFlavorQsbr,
             RcuGuardQsbr,
             RcuPollerQsbr
         );
@@ -424,11 +424,11 @@ pub mod flavor {
 
 /// Defines the default RCU flavor.
 #[cfg(feature = "flavor-memb")]
-pub type DefaultContext = flavor::memb::RcuContextMemb;
+pub type DefaultContext = context::memb::RcuContextMemb;
 
 /// Defines the default RCU flavor.
 #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
-pub type DefaultContext = flavor::mb::RcuContextMb;
+pub type DefaultContext = context::mb::RcuContextMb;
 
 /// Defines the default RCU flavor.
 #[cfg(all(
@@ -436,7 +436,7 @@ pub type DefaultContext = flavor::mb::RcuContextMb;
     not(feature = "flavor-mb"),
     feature = "flavor-bp"
 ))]
-pub type DefaultContext = flavor::bp::RcuContextBp;
+pub type DefaultContext = context::bp::RcuContextBp;
 
 /// Defines the default RCU flavor.
 #[cfg(all(
@@ -445,7 +445,7 @@ pub type DefaultContext = flavor::bp::RcuContextBp;
     not(feature = "flavor-bp"),
     feature = "flavor-qsbr"
 ))]
-pub type DefaultContext = flavor::qsbr::RcuContextQsbr;
+pub type DefaultContext = context::qsbr::RcuContextQsbr;
 
 /// Returns an immutable RCU-protected pointer.
 ///
@@ -482,7 +482,7 @@ mod asserts {
     mod bp {
         use super::*;
 
-        use crate::rcu::flavor::bp::*;
+        use crate::rcu::context::bp::*;
 
         assert_not_impl_all!(RcuPollerBp: Send);
         assert_not_impl_all!(RcuPollerBp: Sync);
@@ -498,7 +498,7 @@ mod asserts {
     mod mb {
         use super::*;
 
-        use crate::rcu::flavor::mb::*;
+        use crate::rcu::context::mb::*;
 
         assert_not_impl_all!(RcuPollerMb: Send);
         assert_not_impl_all!(RcuPollerMb: Sync);
@@ -514,7 +514,7 @@ mod asserts {
     mod memb {
         use super::*;
 
-        use crate::rcu::flavor::memb::*;
+        use crate::rcu::context::memb::*;
 
         assert_not_impl_all!(RcuPollerMemb: Send);
         assert_not_impl_all!(RcuPollerMemb: Sync);
@@ -530,7 +530,7 @@ mod asserts {
     mod qsbr {
         use super::*;
 
-        use crate::rcu::flavor::qsbr::*;
+        use crate::rcu::context::qsbr::*;
 
         assert_not_impl_all!(RcuPollerQsbr: Send);
         assert_not_impl_all!(RcuPollerQsbr: Sync);

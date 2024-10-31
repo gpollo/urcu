@@ -1,4 +1,4 @@
-use urcu::flavor::RcuContextMemb;
+use urcu::context::RcuContextMemb;
 use urcu::{RcuContext, RcuReadContext};
 use urcu::RcuList;
 

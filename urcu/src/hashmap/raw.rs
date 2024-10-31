@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use container_of::container_of;
 use urcu_cds_sys::lfht;
 
-use crate::rcu::api::RcuUnsafe;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::RcuContext;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
@@ -175,7 +175,7 @@ impl<K, V, C> RawMap<K, V, C> {
                 Self::MIN_NR_ALLOC_BUCKETS,
                 Self::MAX_NR_BUCKETS,
                 Self::INIT_FLAGS,
-                C::Unsafe::unchecked_rcu_api(),
+                C::Flavor::unchecked_rcu_api(),
                 std::ptr::null_mut(),
             )
         };

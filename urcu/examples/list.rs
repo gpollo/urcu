@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use urcu::flavor::RcuContextMemb;
+use urcu::context::RcuContextMemb;
 use urcu::{RcuContext, RcuList, RcuReadContext, RcuRef};
 
 struct ReaderThread {

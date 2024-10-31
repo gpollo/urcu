@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
 /// This trait defines the API from the C library.
-pub trait RcuUnsafe {
+pub trait RcuFlavor {
     /// Performs initialization on the RCU thread.
     ///
     /// #### Safety
@@ -16,52 +16,52 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must not be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
-    /// * The thread must unregister with [`RcuUnsafe::unchecked_rcu_read_unregister_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must not be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must unregister with [`RcuFlavor::unchecked_rcu_read_unregister_thread`].
     unsafe fn unchecked_rcu_read_register_thread();
 
     /// Unregisters a read-side RCU thread.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
     unsafe fn unchecked_rcu_read_unregister_thread();
 
     /// Starts a RCU critical section.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
-    /// * The thread must call [`RcuUnsafe::unchecked_rcu_read_unlock`] later.
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must call [`RcuFlavor::unchecked_rcu_read_unlock`] later.
     unsafe fn unchecked_rcu_read_lock();
 
     /// Stops a RCU critical section.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
-    /// * The thread must have called [`RcuUnsafe::unchecked_rcu_read_lock`] before.
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must have called [`RcuFlavor::unchecked_rcu_read_lock`] before.
     unsafe fn unchecked_rcu_read_unlock();
 
     /// Registers a defer-enabled RCU thread.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must not be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
-    /// * The thread must unregister with [`RcuUnsafe::unchecked_rcu_defer_unregister_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must not be registered with [`RcuFlavor::unchecked_rcu_defer_register_thread`].
+    /// * The thread must unregister with [`RcuFlavor::unchecked_rcu_defer_unregister_thread`].
     unsafe fn unchecked_rcu_defer_register_thread();
 
     /// Unregisters a defer-enabled RCU thread.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_defer_register_thread`].
     unsafe fn unchecked_rcu_defer_unregister_thread();
 
     /// Executes a call after the next RCU grace period.
@@ -70,13 +70,13 @@ pub trait RcuUnsafe {
     ///
     /// The callback will be executed on the same thread. If the internal queue is full
     /// the call might block and the callback will be executed immediatly. In such case,
-    /// [`RcuUnsafe::unchecked_rcu_synchronize`] will be called internally.
+    /// [`RcuFlavor::unchecked_rcu_synchronize`] will be called internally.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
-    /// * The thread must call [`RcuUnsafe::unchecked_rcu_defer_barrier`] at exit.
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_defer_register_thread`].
+    /// * The thread must call [`RcuFlavor::unchecked_rcu_defer_barrier`] at exit.
     /// * The thread must not be inside a RCU critical section.
     /// * The pointers must be valid until the callback is executed.
     unsafe fn unchecked_rcu_defer_call(
@@ -88,8 +88,8 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_defer_register_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_defer_register_thread`].
     /// * The thread must not be inside a RCU critical section.
     unsafe fn unchecked_rcu_defer_barrier();
 
@@ -97,7 +97,7 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
     /// * The thread must not be inside a RCU critical section.
     unsafe fn unchecked_rcu_synchronize();
 
@@ -105,17 +105,17 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
     unsafe fn unchecked_rcu_poll_start() -> RcuPollState;
 
     /// Polls if the grace period has ended.
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
-    /// * The thread must use an [`RcuPollState`] from [`RcuUnsafe::unchecked_rcu_poll_start`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must use an [`RcuPollState`] from [`RcuFlavor::unchecked_rcu_poll_start`].
     unsafe fn unchecked_rcu_poll_check(state: RcuPollState) -> bool;
 
     /// Executes a call after the next RCU grace period.
@@ -126,9 +126,9 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
-    /// * The thread must call [`RcuUnsafe::unchecked_rcu_call_barrier`] at exit.
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must call [`RcuFlavor::unchecked_rcu_call_barrier`] at exit.
     /// * The pointers must be valid until the callback is executed.
     unsafe fn unchecked_rcu_call(
         func: Option<unsafe extern "C" fn(ptr: *mut RcuHead)>,
@@ -139,8 +139,8 @@ pub trait RcuUnsafe {
     ///
     /// #### Safety
     ///
-    /// * The thread must be initialized with [`RcuUnsafe::unchecked_rcu_init`].
-    /// * The thread must be registered with [`RcuUnsafe::unchecked_rcu_read_register_thread`].
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
     unsafe fn unchecked_rcu_call_barrier();
 
     /// Returns the API list for this RCU flavor.
@@ -163,7 +163,7 @@ macro_rules! define_flavor {
     ($name:ident, $flavor:ident) => {
         pub struct $name;
 
-        impl RcuUnsafe for $name {
+        impl RcuFlavor for $name {
             unsafe fn unchecked_rcu_init() {
                 urcu_func!($flavor, init)()
             }
@@ -255,7 +255,7 @@ pub(crate) mod bp {
         RCU_API,
     };
 
-    define_flavor!(RcuUnsafeBp, bp);
+    define_flavor!(RcuFlavorBp, bp);
 }
 
 #[cfg(feature = "flavor-mb")]
@@ -280,7 +280,7 @@ pub(crate) mod mb {
         RCU_API,
     };
 
-    define_flavor!(RcuUnsafeMb, mb);
+    define_flavor!(RcuFlavorMb, mb);
 }
 
 #[cfg(feature = "flavor-memb")]
@@ -305,7 +305,7 @@ pub(crate) mod memb {
         RCU_API,
     };
 
-    define_flavor!(RcuUnsafeMemb, memb);
+    define_flavor!(RcuFlavorMemb, memb);
 }
 
 #[cfg(feature = "flavor-qsbr")]
@@ -330,7 +330,7 @@ pub(crate) mod qsbr {
         RCU_API,
     };
 
-    define_flavor!(RcuUnsafeQsbr, qsbr);
+    define_flavor!(RcuFlavorQsbr, qsbr);
 }
 
 #[cfg(feature = "flavor-bp")]

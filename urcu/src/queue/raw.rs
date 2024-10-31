@@ -5,7 +5,7 @@ use std::ops::Deref;
 use container_of::container_of;
 use urcu_cds_sys::lfq;
 
-use crate::rcu::api::RcuUnsafe;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::RcuContext;
 use crate::utility::*;
 
@@ -87,7 +87,7 @@ impl<T, C> RawQueue<T, C> {
         unsafe {
             lfq::init_rcu(
                 &mut self.handle,
-                C::Unsafe::unchecked_rcu_api().update_call_rcu,
+                C::Flavor::unchecked_rcu_api().update_call_rcu,
             )
         };
     }
