@@ -175,18 +175,16 @@ impl<C> RcuCleaner<C> {
 }
 
 macro_rules! impl_cleanup_for_context {
-    ($context:ident) => {
-        use crate::rcu::context::$context;
-
+    ($flavor:ident, $context:ident) => {
         static REGISTER_ATEXIT: Once = Once::new();
         static INSTANCE: RwLock<Option<ThreadHandle<$context>>> = RwLock::new(None);
 
-        impl RcuCleaner<$context> {
+        impl RcuCleaner<$flavor> {
             extern "C" fn delete() {
                 ThreadHandle::<$context>::delete(&INSTANCE);
             }
 
-            pub fn get() -> Self {
+            pub fn get() -> RcuCleaner<$context> {
                 REGISTER_ATEXIT.call_once(|| unsafe {
                     assert_eq!(libc::atexit(Self::delete), 0);
                 });
@@ -202,26 +200,38 @@ macro_rules! impl_cleanup_for_context {
 mod bp {
     use super::*;
 
-    impl_cleanup_for_context!(RcuContextBp);
+    use crate::rcu::context::RcuContextBp;
+    use crate::rcu::flavor::RcuFlavorBp;
+
+    impl_cleanup_for_context!(RcuFlavorBp, RcuContextBp);
 }
 
 #[cfg(feature = "flavor-mb")]
 mod mb {
     use super::*;
 
-    impl_cleanup_for_context!(RcuContextMb);
+    use crate::rcu::context::RcuContextMb;
+    use crate::rcu::flavor::RcuFlavorMb;
+
+    impl_cleanup_for_context!(RcuFlavorMb, RcuContextMb);
 }
 
 #[cfg(feature = "flavor-memb")]
 mod memb {
     use super::*;
 
-    impl_cleanup_for_context!(RcuContextMemb);
+    use crate::rcu::context::RcuContextMemb;
+    use crate::rcu::flavor::RcuFlavorMemb;
+
+    impl_cleanup_for_context!(RcuFlavorMemb, RcuContextMemb);
 }
 
 #[cfg(feature = "flavor-qsbr")]
 mod qsbr {
     use super::*;
 
-    impl_cleanup_for_context!(RcuContextQsbr);
+    use crate::rcu::context::RcuContextQsbr;
+    use crate::rcu::flavor::RcuFlavorQsbr;
+
+    impl_cleanup_for_context!(RcuFlavorQsbr, RcuContextQsbr);
 }

@@ -315,11 +315,11 @@ macro_rules! define_rcu_context {
             }
 
             fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
-                RcuCleaner::<Self>::get().send_mut(callback);
+                RcuCleaner::<Self::Flavor>::get().send_mut(callback);
             }
 
             fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
-                RcuCleaner::<Self>::get().send(callback).barrier();
+                RcuCleaner::<Self::Flavor>::get().send(callback).barrier();
             }
         }
 
