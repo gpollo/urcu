@@ -10,27 +10,26 @@ mod asserts {
 
     use crate::boxed::container::*;
     use crate::rcu::flavor::DefaultFlavor;
-    use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
 
     mod rcu_box {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuBox<NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuBox<NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuBox<NotSendNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuBox<NotSendNotSync, DefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuBox<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuBox<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuBox<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuBox<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuBox<NotSendButSync, DefaultContext>: Send);
-        assert_impl_all!(RcuBox<NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuBox<NotSendButSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuBox<NotSendButSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuBox<SendAndSync, DefaultContext>: Send);
-        assert_impl_all!(RcuBox<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuBox<SendAndSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuBox<SendAndSync, DefaultFlavor>: Sync);
     }
 
     mod rcu_box_ref {
