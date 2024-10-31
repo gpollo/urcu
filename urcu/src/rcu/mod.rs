@@ -1,3 +1,4 @@
+pub(crate) mod builder;
 pub(crate) mod callback;
 pub(crate) mod cleanup;
 pub(crate) mod flavor;
@@ -8,6 +9,7 @@ use std::marker::PhantomData;
 
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::flavor::RcuFlavor;
+use crate::utility::{PhantomUnsend, PhantomUnsync};
 
 /// This trait defines a guard for a read-side lock.
 pub trait RcuGuard {
@@ -131,16 +133,18 @@ macro_rules! define_rcu_guard {
     ($kind:ident, $guard:ident, $flavor:ident, $context:ident) => {
         #[doc = concat!("Defines a guard for a RCU critical section (`liburcu-", stringify!($kind), "`).")]
         #[allow(dead_code)]
-        pub struct $guard<'a>(PhantomData<&'a $context>);
+        pub struct $guard<'a>(PhantomUnsend<&'a ()>, PhantomUnsync<&'a ()>);
 
         impl<'a> $guard<'a> {
-            fn new(_context: &'a $context) -> Self {
+            fn new<C: RcuContext>(context: &'a C) -> Self {
+                let _ = context;
+
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
                 // SAFETY: The critical section is unlocked at guard's drop.
                 unsafe { $flavor::unchecked_rcu_read_lock() };
 
-                Self(PhantomData)
+                Self(PhantomData, PhantomData)
             }
         }
 
@@ -163,11 +167,17 @@ macro_rules! define_rcu_poller {
     ($kind:ident, $poller:ident, $flavor:ident, $context:ident) => {
         #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($kind), "`).")]
         #[allow(dead_code)]
-        pub struct $poller<'a>(PhantomData<&'a $context>, urcu_sys::RcuPollState);
+        pub struct $poller<'a>(
+            PhantomUnsend<&'a ()>,
+            PhantomUnsync<&'a ()>,
+            urcu_sys::RcuPollState,
+        );
 
         impl<'a> $poller<'a> {
-            fn new(_context: &'a $context) -> Self {
-                Self(PhantomData, {
+            fn new<C: RcuContext>(context: &'a C) -> Self {
+                let _ = context;
+
+                Self(PhantomData, PhantomData, {
                     // SAFETY: The thread is initialized at context's creation.
                     // SAFETY: The thread is read-registered at context's creation.
                     unsafe { $flavor::unchecked_rcu_poll_start() }
@@ -180,7 +190,7 @@ macro_rules! define_rcu_poller {
                 // SAFETY: The thread is initialized at context's creation.
                 // SAFETY: The thread is read-registered at context's creation.
                 // SAFETY: The handle is created at poller's creation.
-                unsafe { $flavor::unchecked_rcu_poll_check(self.1) }
+                unsafe { $flavor::unchecked_rcu_poll_check(self.2) }
             }
         }
     };
@@ -195,12 +205,15 @@ macro_rules! define_rcu_context {
         /// There can only be 1 instance per thread.
         /// The thread will be registered upon creation.
         /// It will be unregistered upon dropping.
-        pub struct $context(
-            // Prevent Send+Send auto trait implementations.
-            PhantomData<*const ()>,
+        ///
+        // TODO: set READ = false
+        // TODO: set DEFER = false
+        pub struct $context<const READ: bool = true, const DEFER: bool = true>(
+            PhantomUnsend,
+            PhantomUnsync,
         );
 
-        impl $context {
+        impl<const READ: bool, const DEFER: bool> $context<READ, DEFER> {
             /// Creates the context instance.
             ///
             /// Only the first call will return a context.
@@ -224,22 +237,26 @@ macro_rules! define_rcu_context {
                     // SAFETY: It is the first RCU call for a thread.
                     unsafe { $flavor::unchecked_rcu_init() };
 
-                    // SAFETY: The thread is initialized.
-                    // SAFETY: The thread is not read-registered.
-                    // SAFETY: The thread is read-unregistered at context's drop.
-                    unsafe { $flavor::unchecked_rcu_read_register_thread() };
+                    if READ {
+                        // SAFETY: The thread is initialized.
+                        // SAFETY: The thread is not read-registered.
+                        // SAFETY: The thread is read-unregistered at context's drop.
+                        unsafe { $flavor::unchecked_rcu_read_register_thread() };
+                    }
 
-                    // SAFETY: The thread is initialized.
-                    // SAFETY: The thread is not defer-registered.
-                    // SAFETY: The thread is read-unregistered at context's drop.
-                    unsafe { $flavor::unchecked_rcu_defer_register_thread() };
+                    if DEFER {
+                        // SAFETY: The thread is initialized.
+                        // SAFETY: The thread is not defer-registered.
+                        // SAFETY: The thread is read-unregistered at context's drop.
+                        unsafe { $flavor::unchecked_rcu_defer_register_thread() };
+                    }
 
-                    Some(Self(PhantomData))
+                    Some(Self(PhantomData, PhantomData))
                 })
             }
         }
 
-        impl Drop for $context {
+        impl<const READ: bool, const DEFER: bool> Drop for $context<READ, DEFER> {
             fn drop(&mut self) {
                 log::info!(
                     "unregistering thread '{}' ({}) with RCU (liburcu-{})",
@@ -248,29 +265,33 @@ macro_rules! define_rcu_context {
                     stringify!($kind),
                 );
 
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is defer-registered at context's creation.
-                // SAFETY: The thread can't be in a RCU critical section if it's dropping.
-                unsafe { $flavor::unchecked_rcu_defer_barrier() };
+                if DEFER {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is defer-registered at context's creation.
+                    // SAFETY: The thread can't be in a RCU critical section if it's dropping.
+                    unsafe { $flavor::unchecked_rcu_defer_barrier() };
 
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is defer-registered at context's creation.
-                unsafe { $flavor::unchecked_rcu_defer_unregister_thread() };
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is defer-registered at context's creation.
+                    unsafe { $flavor::unchecked_rcu_defer_unregister_thread() };
+                }
 
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is read-registered at context's creation.
-                unsafe { $flavor::unchecked_rcu_call_barrier() };
+                if READ {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    unsafe { $flavor::unchecked_rcu_call_barrier() };
 
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is read-registered at context's creation.
-                unsafe { $flavor::unchecked_rcu_read_unregister_thread() };
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    unsafe { $flavor::unchecked_rcu_read_unregister_thread() };
+                }
             }
         }
 
         /// #### Safety
         ///
         /// There can only be 1 instance per thread.
-        unsafe impl RcuContext for $context {
+        unsafe impl<const READ: bool, const DEFER: bool> RcuContext for $context<READ, DEFER> {
             type Flavor = $flavor;
 
             type Poller<'a> = $poller<'a>;
@@ -296,11 +317,11 @@ macro_rules! define_rcu_context {
         /// #### Safety
         ///
         /// `call_rcu` barrier is called before cleanups.
-        unsafe impl RcuReadContext for $context {
+        unsafe impl<const DEFER: bool> RcuReadContext for $context<true, DEFER> {
             type Guard<'a> = $guard<'a>;
 
             fn rcu_read_lock(&self) -> Self::Guard<'_> {
-                $guard::new(self)
+                $guard::<'_>::new(self)
             }
 
             fn rcu_call<F>(&self, callback: Box<F>)
@@ -320,7 +341,7 @@ macro_rules! define_rcu_context {
         /// #### Safety
         ///
         /// `defer_rcu` barrier is called before cleanups.
-        unsafe impl RcuDeferContext for $context {
+        unsafe impl<const READ: bool> RcuDeferContext for $context<READ, true> {
             fn rcu_defer<F>(&mut self, callback: Box<F>)
             where
                 F: RcuDefer,

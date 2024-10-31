@@ -22,7 +22,7 @@ impl ReaderThread {
     }
 
     fn run(self) {
-        let context = RcuContextMemb::rcu_register().unwrap();
+        let context: RcuContextMemb<true, true> = RcuContextMemb::rcu_register().unwrap();
 
         let mut node_count = 0u128;
         let mut total_sum = 0u128;

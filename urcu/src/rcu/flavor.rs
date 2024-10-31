@@ -2,6 +2,7 @@ use std::ffi::c_void;
 
 use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
+use crate::rcu::builder::RcuContextBuilder;
 use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
 use crate::rcu::RcuContext;
 
@@ -177,6 +178,11 @@ pub trait RcuFlavor {
     ///
     /// The callback does not receive a mutable context in order to prevent deadlock.
     fn rcu_cleanup_and_block(callback: RcuCleanup<Self::CleanupContext>);
+
+    /// Creates a builder for a context of this flavor.
+    fn rcu_context_builder() -> RcuContextBuilder<Self>
+    where
+        Self: Sized;
 }
 
 macro_rules! urcu_func {
@@ -266,6 +272,13 @@ macro_rules! define_flavor {
 
             fn rcu_cleanup_and_block(callback: RcuCleanup<Self::CleanupContext>) {
                 RcuCleaner::<Self>::get().send(callback).barrier();
+            }
+
+            fn rcu_context_builder() -> RcuContextBuilder<Self>
+            where
+                Self: Sized,
+            {
+                RcuContextBuilder::<Self>::new()
             }
         }
     };
