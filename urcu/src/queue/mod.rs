@@ -14,27 +14,26 @@ mod asserts {
 
     use crate::queue::container::RcuQueue;
     use crate::rcu::flavor::DefaultFlavor;
-    use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
 
     mod rcu_queue {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuQueue<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuQueue<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuQueue<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(RcuQueue<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuQueue<NotSendButSync, DefaultContext>: Send);
-        assert_impl_all!(RcuQueue<NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuQueue<NotSendButSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuQueue<NotSendButSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuQueue<SendAndSync, DefaultContext>: Send);
-        assert_impl_all!(RcuQueue<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuQueue<SendAndSync, DefaultFlavor>: Send);
+        assert_impl_all!(RcuQueue<SendAndSync, DefaultFlavor>: Sync);
     }
 
     mod rcu_queue_ref {

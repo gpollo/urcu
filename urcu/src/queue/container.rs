@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use crate::queue::raw::{RawNode, RawQueue};
 use crate::queue::reference::Ref;
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::RcuGuard;
 use crate::utility::*;
 
 /// Defines a RCU wait-free queue.
@@ -26,18 +27,18 @@ use crate::utility::*;
 /// It is safe to send an `Arc<RcuQueue<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuQueue<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuQueue<T, C = DefaultContext> {
-    raw: RawQueue<T, C>,
+pub struct RcuQueue<T, F = DefaultFlavor> {
+    raw: RawQueue<T, F>,
     _unsend: PhantomUnsend,
     _unsync: PhantomUnsync,
 }
 
-impl<T, C> RcuQueue<T, C> {
+impl<T, F> RcuQueue<T, F>
+where
+    F: RcuFlavor,
+{
     /// Creates a new RCU queue.
-    pub fn new() -> Arc<Self>
-    where
-        C: RcuContext,
-    {
+    pub fn new() -> Arc<Self> {
         let mut queue = Arc::new(RcuQueue {
             // SAFETY: Initialisation is properly called.
             raw: unsafe { RawQueue::new() },
@@ -53,10 +54,10 @@ impl<T, C> RcuQueue<T, C> {
     }
 
     /// Adds an element to the back of queue.
-    pub fn push(&self, data: T, _guard: &C::Guard<'_>)
+    pub fn push<G>(&self, data: T, _guard: &G)
     where
         T: Send,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         let node = RawNode::new(data);
 
@@ -65,38 +66,38 @@ impl<T, C> RcuQueue<T, C> {
     }
 
     /// Removes an element to the front of the queue, if any.
-    pub fn pop(&self, _guard: &C::Guard<'_>) -> Option<Ref<T, C::Flavor>>
+    pub fn pop<G>(&self, _guard: &G) -> Option<Ref<T, F>>
     where
         T: Send,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU read-lock is taken.
-        // SAFETY: The RCU grace period is enforced using `Ref<T, C>`.
-        NonNull::new(unsafe { self.raw.dequeue() }).map(Ref::<T, C::Flavor>::new)
+        // SAFETY: The RCU grace period is enforced using `Ref<T, F>`.
+        NonNull::new(unsafe { self.raw.dequeue() }).map(Ref::<T, F>::new)
     }
 }
 
 /// #### Safety
 ///
 /// An [`RcuQueue`] can be used to send `T` to another thread.
-unsafe impl<T, C> Send for RcuQueue<T, C>
+unsafe impl<T, F> Send for RcuQueue<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
 /// #### Safety
 ///
 /// An [`RcuQueue`] can be used to share `T` between threads.
-unsafe impl<T, C> Sync for RcuQueue<T, C>
+unsafe impl<T, F> Sync for RcuQueue<T, F>
 where
     T: Sync,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
-impl<T, C> Drop for RcuQueue<T, C> {
+impl<T, F> Drop for RcuQueue<T, F> {
     fn drop(&mut self) {
         // SAFETY: The RCU read-lock is not needed there are no other writers.
         // SAFETY: The RCU grace period is not needed there are no other readers.
