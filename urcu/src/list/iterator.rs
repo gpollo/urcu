@@ -1,33 +1,33 @@
 use std::ops::Deref;
 
 use crate::list::raw::RawIter;
-use crate::rcu::RcuReadContext;
+use crate::rcu::RcuGuard;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///
 /// [`RcuList`]: crate::list::container::RcuList
-pub struct Iter<'ctx, 'guard, T, C, const FORWARD: bool>
+pub struct Iter<'guard, T, G, const FORWARD: bool>
 where
-    C: RcuReadContext + 'ctx,
+    G: RcuGuard,
 {
     raw: RawIter<T, FORWARD>,
     #[allow(dead_code)]
-    guard: &'guard C::Guard<'ctx>,
+    guard: &'guard G,
 }
 
-impl<'ctx, 'guard, T, C, const FORWARD: bool> Iter<'ctx, 'guard, T, C, FORWARD>
+impl<'guard, T, G, const FORWARD: bool> Iter<'guard, T, G, FORWARD>
 where
-    C: RcuReadContext + 'ctx,
+    G: RcuGuard,
 {
-    pub(crate) fn new(raw: RawIter<T, FORWARD>, guard: &'guard C::Guard<'ctx>) -> Self {
+    pub(crate) fn new(raw: RawIter<T, FORWARD>, guard: &'guard G) -> Self {
         Self { raw, guard }
     }
 }
 
-impl<'ctx, 'guard, T, C, const FORWARD: bool> Iterator for Iter<'ctx, 'guard, T, C, FORWARD>
+impl<'guard, T, G, const FORWARD: bool> Iterator for Iter<'guard, T, G, FORWARD>
 where
     Self: 'guard,
-    C: RcuReadContext + 'ctx,
+    G: RcuGuard,
 {
     type Item = &'guard T;
 

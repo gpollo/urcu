@@ -10,11 +10,11 @@ use urcu::{RcuContext, RcuList, RcuReadContext, RcuRef};
 
 struct ReaderThread {
     publisher_count: Arc<AtomicUsize>,
-    list: Arc<RcuList<u32, RcuContextMemb>>,
+    list: Arc<RcuList<u32>>,
 }
 
 impl ReaderThread {
-    fn new(publisher_count: &Arc<AtomicUsize>, list: &Arc<RcuList<u32, RcuContextMemb>>) -> Self {
+    fn new(publisher_count: &Arc<AtomicUsize>, list: &Arc<RcuList<u32>>) -> Self {
         Self {
             publisher_count: publisher_count.clone(),
             list: list.clone(),
@@ -54,14 +54,14 @@ impl ReaderThread {
 struct PublisherThread {
     exit_signal: Arc<AtomicBool>,
     publisher_count: Arc<AtomicUsize>,
-    list: Arc<RcuList<u32, RcuContextMemb>>,
+    list: Arc<RcuList<u32>>,
 }
 
 impl PublisherThread {
     fn new(
         exit_signal: &Arc<AtomicBool>,
         publisher_count: &Arc<AtomicUsize>,
-        list: &Arc<RcuList<u32, RcuContextMemb>>,
+        list: &Arc<RcuList<u32>>,
     ) -> Self {
         publisher_count.fetch_add(1, Ordering::Release);
 
@@ -99,11 +99,11 @@ impl PublisherThread {
 
 struct ConsumerThread {
     publisher_count: Arc<AtomicUsize>,
-    list: Arc<RcuList<u32, RcuContextMemb>>,
+    list: Arc<RcuList<u32>>,
 }
 
 impl ConsumerThread {
-    fn new(publisher_count: &Arc<AtomicUsize>, list: &Arc<RcuList<u32, RcuContextMemb>>) -> Self {
+    fn new(publisher_count: &Arc<AtomicUsize>, list: &Arc<RcuList<u32>>) -> Self {
         Self {
             publisher_count: publisher_count.clone(),
             list: list.clone(),
@@ -202,7 +202,7 @@ fn main() {
     std::thread::scope(|scope| {
         let exit = Arc::new(AtomicBool::new(false));
         let exit_handler = ExitHandler::configure();
-        let list = RcuList::<u32, RcuContextMemb>::new();
+        let list = RcuList::<u32>::new();
 
         let publisher_count = Arc::new(AtomicUsize::new(0));
         let publishers = (0..args.publishers)

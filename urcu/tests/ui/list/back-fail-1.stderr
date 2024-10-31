@@ -1,11 +1,11 @@
 error[E0505]: cannot move out of `guard` because it is borrowed
-  --> tests/ui/list/back-fail-1.rs:11:10
+  --> tests/ui/list/back-fail-1.rs:10:10
    |
-9  |     let guard = context.rcu_read_lock();
+8  |     let guard = context.rcu_read_lock();
    |         ----- binding `guard` declared here
-10 |     let back = list.back(&guard);
+9  |     let back = list.back(&guard);
    |                          ------ borrow of `guard` occurs here
-11 |     drop(guard);
+10 |     drop(guard);
    |          ^^^^^ move out of `guard` occurs here
-12 |     log::info!("{:?}", back);
+11 |     log::info!("{:?}", back);
    |                        ---- borrow later used here
