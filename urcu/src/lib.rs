@@ -17,6 +17,7 @@ pub use crate::list::container::RcuList;
 pub use crate::queue::container::RcuQueue;
 pub use crate::rcu::callback::*;
 pub use crate::rcu::cleanup::*;
+pub use crate::rcu::flavor::DefaultFlavor;
 pub use crate::rcu::flavor::RcuFlavor;
 pub use crate::rcu::reference::*;
 pub use crate::rcu::*;

@@ -431,15 +431,15 @@ pub mod context {
     pub use qsbr::*;
 }
 
-/// Defines the default RCU flavor.
+/// Defines the default RCU context.
 #[cfg(feature = "flavor-memb")]
 pub type DefaultContext = context::memb::RcuContextMemb;
 
-/// Defines the default RCU flavor.
+/// Defines the default RCU context.
 #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
 pub type DefaultContext = context::mb::RcuContextMb;
 
-/// Defines the default RCU flavor.
+/// Defines the default RCU context.
 #[cfg(all(
     not(feature = "flavor-memb"),
     not(feature = "flavor-mb"),
@@ -447,7 +447,7 @@ pub type DefaultContext = context::mb::RcuContextMb;
 ))]
 pub type DefaultContext = context::bp::RcuContextBp;
 
-/// Defines the default RCU flavor.
+/// Defines the default RCU context.
 #[cfg(all(
     not(feature = "flavor-memb"),
     not(feature = "flavor-mb"),
