@@ -7,6 +7,7 @@ use anyhow::Result;
 use crate::hashmap::iterator::Iter;
 use crate::hashmap::raw::RawMap;
 use crate::hashmap::reference::Ref;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::RcuContext;
 use crate::{DefaultContext, RcuReadContext, RcuRef};
 
@@ -142,7 +143,7 @@ where
     fn drop(&mut self) {
         let mut raw = self.0.clone();
 
-        C::rcu_cleanup_and_block(Box::new(move |context| {
+        C::Flavor::rcu_cleanup_and_block(Box::new(move |context| {
             let guard = context.rcu_read_lock();
 
             // SAFETY: The read-side RCU lock is taken.
@@ -151,7 +152,7 @@ where
                 .copied()
                 .map(Ref::<K, V, C>::new)
                 .collect::<Vec<_>>()
-                .call_cleanup(context);
+                .safe_cleanup();
 
             drop(guard);
 

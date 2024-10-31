@@ -1,4 +1,5 @@
 use crate::rcu::callback::{RcuCallFn, RcuDeferFn};
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
 
 /// This trait defines a RCU reference that can be owned after a RCU grace period.
@@ -106,7 +107,7 @@ pub unsafe trait RcuRef<C> {
         Self: Sized + Send + 'static,
         C: RcuContext,
     {
-        C::rcu_cleanup(Box::new(move |context| {
+        C::Flavor::rcu_cleanup(Box::new(move |context| {
             context.rcu_synchronize();
 
             // SAFETY: An RCU syncronization barrier was called.

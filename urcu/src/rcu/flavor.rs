@@ -2,6 +2,9 @@ use std::ffi::c_void;
 
 use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
+use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
+use crate::rcu::RcuContext;
+
 /// This trait defines the API from the C library.
 pub trait RcuFlavor {
     /// Performs initialization on the RCU thread.
@@ -149,6 +152,31 @@ pub trait RcuFlavor {
     ///
     /// * The thread have the same requirements as the other functions when using this API.
     unsafe fn unchecked_rcu_api() -> &'static RcuFlavorApi;
+
+    /// Defines the context used in cleanup calls.
+    type CleanupContext: RcuContext + RcuReadContext + RcuDeferContext;
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// Unlike [`RcuReadContext::rcu_call`] or [`RcuDeferContext::rcu_defer`], this
+    /// function can be called by any thread whether it is registered or not.
+    ///
+    /// #### Note
+    ///
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
+    fn rcu_cleanup(callback: RcuCleanupMut<Self::CleanupContext>);
+
+    /// Configures a callback to be called after the next RCU grace period is finished.
+    ///
+    /// Unlike [`RcuReadContext::rcu_call`] or [`RcuDeferContext::rcu_defer`], this
+    /// function can be called by any thread whether it is registered or not.
+    ///
+    /// #### Note
+    ///
+    /// The callback must be [`Send`] because it will be executed by an helper thread.
+    ///
+    /// The callback does not receive a mutable context in order to prevent deadlock.
+    fn rcu_cleanup_and_block(callback: RcuCleanup<Self::CleanupContext>);
 }
 
 macro_rules! urcu_func {
@@ -160,7 +188,7 @@ macro_rules! urcu_func {
 }
 
 macro_rules! define_flavor {
-    ($name:ident, $flavor:ident) => {
+    ($name:ident, $flavor:ident, $context:ident) => {
         pub struct $name;
 
         impl RcuFlavor for $name {
@@ -229,6 +257,16 @@ macro_rules! define_flavor {
             unsafe fn unchecked_rcu_api() -> &'static RcuFlavorApi {
                 &RCU_API
             }
+
+            type CleanupContext = $context;
+
+            fn rcu_cleanup(callback: RcuCleanupMut<Self::CleanupContext>) {
+                RcuCleaner::<Self>::get().send_mut(callback);
+            }
+
+            fn rcu_cleanup_and_block(callback: RcuCleanup<Self::CleanupContext>) {
+                RcuCleaner::<Self>::get().send(callback).barrier();
+            }
         }
     };
 }
@@ -255,7 +293,9 @@ pub(crate) mod bp {
         RCU_API,
     };
 
-    define_flavor!(RcuFlavorBp, bp);
+    use crate::rcu::context::RcuContextBp;
+
+    define_flavor!(RcuFlavorBp, bp, RcuContextBp);
 }
 
 #[cfg(feature = "flavor-mb")]
@@ -280,7 +320,9 @@ pub(crate) mod mb {
         RCU_API,
     };
 
-    define_flavor!(RcuFlavorMb, mb);
+    use crate::rcu::context::RcuContextMb;
+
+    define_flavor!(RcuFlavorMb, mb, RcuContextMb);
 }
 
 #[cfg(feature = "flavor-memb")]
@@ -305,7 +347,9 @@ pub(crate) mod memb {
         RCU_API,
     };
 
-    define_flavor!(RcuFlavorMemb, memb);
+    use crate::rcu::context::RcuContextMemb;
+
+    define_flavor!(RcuFlavorMemb, memb, RcuContextMemb);
 }
 
 #[cfg(feature = "flavor-qsbr")]
@@ -330,7 +374,9 @@ pub(crate) mod qsbr {
         RCU_API,
     };
 
-    define_flavor!(RcuFlavorQsbr, qsbr);
+    use crate::rcu::context::RcuContextQsbr;
+
+    define_flavor!(RcuFlavorQsbr, qsbr, RcuContextQsbr);
 }
 
 #[cfg(feature = "flavor-bp")]
@@ -344,6 +390,8 @@ pub use memb::*;
 
 #[cfg(feature = "flavor-qsbr")]
 pub use qsbr::*;
+
+use super::{RcuDeferContext, RcuReadContext};
 
 /// Defines the default RCU flavor.
 #[cfg(feature = "flavor-memb")]

@@ -7,7 +7,6 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 
 use crate::rcu::callback::{RcuCall, RcuDefer};
-use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
 use crate::rcu::flavor::RcuFlavor;
 
 /// This trait is used to manually poll the RCU grace period.
@@ -68,28 +67,6 @@ pub unsafe trait RcuContext {
     ///
     /// It may be called in a RCU critical section.
     fn rcu_synchronize_poller(&self) -> Self::Poller<'_>;
-
-    /// Configures a callback to be called after the next RCU grace period is finished.
-    ///
-    /// Unlike [`RcuReadContext::rcu_call`], this function can be called by any thread whether
-    /// it is registered or not.
-    ///
-    /// #### Note
-    ///
-    /// The callback must be [`Send`] because it will be executed by an helper thread.
-    fn rcu_cleanup(callback: RcuCleanupMut<Self>);
-
-    /// Configures a callback to be called after the next RCU grace period is finished.
-    ///
-    /// Unlike [`RcuReadContext::rcu_call`], this function can be called by any thread whether
-    /// it is registered or not.
-    ///
-    /// #### Note
-    ///
-    /// The callback must be [`Send`] because it will be executed by an helper thread.
-    ///
-    /// The callback does not receive a mutable context in order to prevent deadlock.
-    fn rcu_cleanup_and_block(callback: RcuCleanup<Self>);
 }
 
 /// This trait defines the per-thread RCU read context.
@@ -303,14 +280,6 @@ macro_rules! define_rcu_context {
 
             fn rcu_synchronize_poller(&self) -> Self::Poller<'_> {
                 $poller::new(self)
-            }
-
-            fn rcu_cleanup(callback: RcuCleanupMut<Self>) {
-                RcuCleaner::<Self::Flavor>::get().send_mut(callback);
-            }
-
-            fn rcu_cleanup_and_block(callback: RcuCleanup<Self>) {
-                RcuCleaner::<Self::Flavor>::get().send(callback).barrier();
             }
         }
 
