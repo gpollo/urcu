@@ -8,7 +8,8 @@ use anyhow::{bail, Result};
 use crate::list::iterator::Iter;
 use crate::list::raw::{RawIter, RawList, RawNode};
 use crate::list::reference::Ref;
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::RcuGuard;
 use crate::utility::*;
 
 /// Defines a RCU doubly linked list.
@@ -38,19 +39,19 @@ use crate::utility::*;
 /// It is safe to send an `Arc<RcuList<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuList<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuList<T, C = DefaultContext> {
+pub struct RcuList<T, F = DefaultFlavor> {
     raw: RawList<T>,
     mutex: Mutex<()>,
-    _unsend: PhantomUnsend<C>,
-    _unsync: PhantomUnsync<C>,
+    _unsend: PhantomUnsend<F>,
+    _unsync: PhantomUnsync<F>,
 }
 
-impl<T, C> RcuList<T, C> {
+impl<T, F> RcuList<T, F>
+where
+    F: RcuFlavor,
+{
     /// Creates a new RCU linked list.
-    pub fn new() -> Arc<Self>
-    where
-        C: RcuContext,
-    {
+    pub fn new() -> Arc<Self> {
         let mut list = Arc::new(RcuList {
             // SAFETY: Initialisation is properly called.
             raw: unsafe { RawList::new() },
@@ -67,17 +68,17 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Returns `true` if the list contains an element equal to the given value.
-    pub fn contains(&self, x: &T, guard: &C::Guard<'_>) -> bool
+    pub fn contains<G>(&self, x: &T, guard: &G) -> bool
     where
         T: PartialEq,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         self.iter_forward(guard).any(|item| item == x)
     }
 
-    fn with_mutex<F, R>(&self, callback: F) -> Result<R>
+    fn with_mutex<C, R>(&self, callback: C) -> Result<R>
     where
-        F: FnOnce() -> R,
+        C: FnOnce() -> R,
     {
         match self.mutex.lock() {
             Err(_) => bail!("mutex of the list has been poisoned"),
@@ -124,10 +125,9 @@ impl<T, C> RcuList<T, C> {
     /// #### Note
     ///
     /// This operation may block.
-    pub fn pop_back(&self) -> Result<Option<Ref<T, C::Flavor>>>
+    pub fn pop_back(&self) -> Result<Option<Ref<T, F>>>
     where
         T: Send,
-        C: RcuContext,
     {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
@@ -143,10 +143,9 @@ impl<T, C> RcuList<T, C> {
     /// #### Note
     ///
     /// This operation may block.
-    pub fn pop_front(&self) -> Result<Option<Ref<T, C::Flavor>>>
+    pub fn pop_front(&self) -> Result<Option<Ref<T, F>>>
     where
         T: Send,
-        C: RcuContext,
     {
         self.with_mutex(|| {
             // SAFETY: There is mutual exclusion between writers.
@@ -167,10 +166,10 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Provides a reference to the back element, or `None` if the list is empty.
-    pub fn back<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
+    pub fn back<'me, 'guard, G>(&'me self, guard: &'guard G) -> Option<&'guard T>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         let _ = guard;
 
@@ -180,10 +179,10 @@ impl<T, C> RcuList<T, C> {
     }
 
     /// Provides a reference to the front element, or `None` if the list is empty.
-    pub fn front<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
+    pub fn front<'me, 'guard, G>(&'me self, guard: &'guard G) -> Option<&'guard T>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         let _ = guard;
 
@@ -195,13 +194,10 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from back to front.
-    pub fn iter_forward<'me, 'ctx, 'guard>(
-        &'me self,
-        guard: &'guard C::Guard<'ctx>,
-    ) -> Iter<'ctx, 'guard, T, C, true>
+    pub fn iter_forward<'me, 'guard, G>(&'me self, guard: &'guard G) -> Iter<'guard, T, G, true>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { RawIter::<T, true>::from_back(&self.raw) }, guard)
@@ -210,13 +206,10 @@ impl<T, C> RcuList<T, C> {
     /// Returns an iterator over the list.
     ///
     /// The iterator yields all items from front to back.
-    pub fn iter_reverse<'me, 'ctx, 'guard>(
-        &'me self,
-        guard: &'guard C::Guard<'ctx>,
-    ) -> Iter<'ctx, 'guard, T, C, false>
+    pub fn iter_reverse<'me, 'guard, G>(&'me self, guard: &'guard G) -> Iter<'guard, T, G, false>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { RawIter::<T, false>::from_front(&self.raw) }, guard)
@@ -226,24 +219,24 @@ impl<T, C> RcuList<T, C> {
 /// #### Safety
 ///
 /// An [`RcuList`] can be used to send `T` to another thread.
-unsafe impl<T, C> Send for RcuList<T, C>
+unsafe impl<T, F> Send for RcuList<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
 /// #### Safety
 ///
 /// An [`RcuList`] can be used to share `T` between threads.
-unsafe impl<T, C> Sync for RcuList<T, C>
+unsafe impl<T, F> Sync for RcuList<T, F>
 where
     T: Sync,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
-impl<T, C> Drop for RcuList<T, C> {
+impl<T, F> Drop for RcuList<T, F> {
     fn drop(&mut self) {
         // SAFETY: The RCU grace period is not needed because there are no other readers.
         while let Some(mut ptr) = NonNull::new(unsafe { self.raw.remove_back() }) {

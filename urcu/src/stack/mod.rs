@@ -14,28 +14,28 @@ mod asserts {
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::list::container::RcuList;
     use crate::rcu::DefaultContext;
+    use crate::stack::container::RcuStack;
     use crate::utility::asserts::*;
 
     mod rcu_list {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuList<NotSendNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuList<NotSendNotSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultContext>: Send);
+        assert_not_impl_all!(RcuStack<NotSendNotSync, DefaultContext>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuList<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(RcuList<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuStack<SendButNotSync, DefaultContext>: Send);
+        assert_not_impl_all!(RcuStack<SendButNotSync, DefaultContext>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuList<NotSendButSync, DefaultContext>: Send);
-        assert_impl_all!(RcuList<NotSendButSync, DefaultContext>: Sync);
+        assert_not_impl_all!(RcuStack<NotSendButSync, DefaultContext>: Send);
+        assert_impl_all!(RcuStack<NotSendButSync, DefaultContext>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuList<SendAndSync, DefaultContext>: Send);
-        assert_impl_all!(RcuList<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(RcuStack<SendAndSync, DefaultContext>: Send);
+        assert_impl_all!(RcuStack<SendAndSync, DefaultContext>: Sync);
     }
 
     mod rcu_list_ref_owned {
