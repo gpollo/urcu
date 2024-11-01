@@ -8,7 +8,6 @@ use container_of::container_of;
 use urcu_cds_sys::lfht;
 
 use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::RcuContext;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
 //////////////////////
@@ -96,17 +95,17 @@ impl<K, V> RawNode<K, V> {
     }
 }
 
-pub struct RawIter<'a, K, V, C> {
+pub struct RawIter<'a, K, V, F> {
     handle: lfht::Iter,
-    map: &'a RawMap<K, V, C>,
-    _unsend: PhantomUnsend<(K, V, C)>,
-    _unsync: PhantomUnsync<(K, V, C)>,
+    map: &'a RawMap<K, V, F>,
+    _unsend: PhantomUnsend<(K, V, F)>,
+    _unsync: PhantomUnsync<(K, V, F)>,
 }
 
-impl<'a, K, V, C> RawIter<'a, K, V, C> {
-    fn new<F>(map: &'a RawMap<K, V, C>, init: F) -> Self
+impl<'a, K, V, F> RawIter<'a, K, V, F> {
+    fn new<I>(map: &'a RawMap<K, V, F>, init: I) -> Self
     where
-        F: FnOnce(*mut lfht::Iter),
+        I: FnOnce(*mut lfht::Iter),
     {
         let mut iterator = Self {
             map,
@@ -153,13 +152,13 @@ impl<'a, K, V, C> RawIter<'a, K, V, C> {
     }
 }
 
-pub struct RawMap<K, V, C> {
+pub struct RawMap<K, V, F> {
     handle: *mut lfht::Handle,
-    _unsend: PhantomUnsend<(K, V, C)>,
-    _unsync: PhantomUnsync<(K, V, C)>,
+    _unsend: PhantomUnsend<(K, V, F)>,
+    _unsync: PhantomUnsync<(K, V, F)>,
 }
 
-impl<K, V, C> RawMap<K, V, C> {
+impl<K, V, F> RawMap<K, V, F> {
     const INIT_FLAGS: i32 = (lfht::ACCOUNTING | lfht::AUTO_RESIZE) as i32;
     const INIT_SIZE: u64 = 1;
     const MIN_NR_ALLOC_BUCKETS: u64 = 1;
@@ -167,7 +166,7 @@ impl<K, V, C> RawMap<K, V, C> {
 
     pub fn new() -> Result<Self>
     where
-        C: RcuContext,
+        F: RcuFlavor,
     {
         let handle = unsafe {
             lfht::new_flavor(
@@ -175,7 +174,7 @@ impl<K, V, C> RawMap<K, V, C> {
                 Self::MIN_NR_ALLOC_BUCKETS,
                 Self::MAX_NR_BUCKETS,
                 Self::INIT_FLAGS,
-                C::Flavor::unchecked_rcu_api(),
+                F::unchecked_rcu_api(),
                 std::ptr::null_mut(),
             )
         };
@@ -224,7 +223,7 @@ impl<K, V, C> RawMap<K, V, C> {
     /// #### Safety
     ///
     /// The caller must be in a RCU read-side critical section.
-    pub unsafe fn lookup(&self, key: &K) -> RawIter<K, V, C>
+    pub unsafe fn lookup(&self, key: &K) -> RawIter<K, V, F>
     where
         K: Eq + Hash,
     {
@@ -245,7 +244,7 @@ impl<K, V, C> RawMap<K, V, C> {
     /// #### Safety
     ///
     /// The caller must be in a RCU read-side critical section.
-    pub unsafe fn iter(&self) -> RawIter<K, V, C> {
+    pub unsafe fn iter(&self) -> RawIter<K, V, F> {
         RawIter::new(self, |iter| {
             // SAFETY: All pointers are non-null.
             unsafe { lfht::first(self.handle, iter) }
@@ -257,10 +256,7 @@ impl<K, V, C> RawMap<K, V, C> {
     /// The caller must be in a RCU read-side critical section.
     ///
     /// The caller must wait for a RCU grace period before taking ownership of the old value.
-    pub unsafe fn del(&self, mut node: NonNull<RawNode<K, V>>) -> *mut RawNode<K, V>
-    where
-        C: RcuContext,
-    {
+    pub unsafe fn del(&self, mut node: NonNull<RawNode<K, V>>) -> *mut RawNode<K, V> {
         // SAFETY: The iterator pointer is non-null.
         // SAFETY: The node pointer is non-null.
         unsafe {
@@ -317,7 +313,7 @@ impl<K, V, C> RawMap<K, V, C> {
 /// #### Safety
 ///
 /// It is safe to send the wrapper to another thread if the key/value are [`Send`].
-unsafe impl<K, V, C> Send for RawMap<K, V, C>
+unsafe impl<K, V, F> Send for RawMap<K, V, F>
 where
     K: Send,
     V: Send,
@@ -327,7 +323,7 @@ where
 /// #### Safety
 ///
 /// It is safe to send the wrapper to another thread if the key/value are [`Sync`].
-unsafe impl<K, V, C> Sync for RawMap<K, V, C>
+unsafe impl<K, V, F> Sync for RawMap<K, V, F>
 where
     K: Sync,
     V: Sync,
