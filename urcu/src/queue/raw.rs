@@ -6,7 +6,6 @@ use container_of::container_of;
 use urcu_cds_sys::lfq;
 
 use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::RcuContext;
 use crate::utility::*;
 
 pub struct RawNode<T> {
@@ -52,13 +51,13 @@ unsafe impl<T: Send> Send for RawNode<T> {}
 /// It is safe to share a [`RawNode<T>`] between threads if `T` is [`Sync`].
 unsafe impl<T: Sync> Sync for RawNode<T> {}
 
-pub struct RawQueue<T, C> {
+pub struct RawQueue<T, F> {
     handle: lfq::QueueRcu,
-    _unsend: PhantomUnsend<(T, C)>,
-    _unsync: PhantomUnsync<(T, C)>,
+    _unsend: PhantomUnsend<(T, F)>,
+    _unsync: PhantomUnsync<(T, F)>,
 }
 
-impl<T, C> RawQueue<T, C> {
+impl<T, F> RawQueue<T, F> {
     /// #### Safety
     ///
     /// The caller must call [`RawQueue::init`] once [`RawQueue`] is in a stable memory location.
@@ -80,16 +79,11 @@ impl<T, C> RawQueue<T, C> {
     /// The caller must remove all nodes before dropping this type.
     pub unsafe fn init(&mut self)
     where
-        C: RcuContext,
+        F: RcuFlavor,
     {
         // SAFETY: We don't need to registered with RCU in any way.
         // SAFETY: The unchecked API is used by the C code.
-        unsafe {
-            lfq::init_rcu(
-                &mut self.handle,
-                C::Flavor::unchecked_rcu_api().update_call_rcu,
-            )
-        };
+        unsafe { lfq::init_rcu(&mut self.handle, F::unchecked_rcu_api().update_call_rcu) };
     }
 
     /// #### Safety
@@ -109,8 +103,6 @@ impl<T, C> RawQueue<T, C> {
     // The caller must wait a RCU grace period before freeing the node.
     pub unsafe fn dequeue(&self) -> *mut RawNode<T> {
         let handle = &self.handle as *const lfq::QueueRcu as *mut lfq::QueueRcu;
-
-        println!("DEQUEUE {:?}", handle);
 
         // SAFETY: The C call safely mutate the state shared between threads.
         let handle = unsafe { lfq::dequeue_rcu(handle) };
@@ -142,7 +134,7 @@ impl<T, C> RawQueue<T, C> {
     }
 }
 
-impl<T, C> Drop for RawQueue<T, C> {
+impl<T, F> Drop for RawQueue<T, F> {
     fn drop(&mut self) {
         // SAFETY: The queue creator must empty the queue before dropping.
         let ret = unsafe { lfq::destroy_rcu(&mut self.handle) };
