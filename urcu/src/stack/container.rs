@@ -3,7 +3,8 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::RcuGuard;
 use crate::stack::iterator::{Iter, IterRef};
 use crate::stack::raw::{RawNode, RawStack};
 use crate::stack::reference::Ref;
@@ -36,13 +37,16 @@ use crate::utility::*;
 /// It is safe to send an `Arc<RcuStack<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuStack<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuStack<T, C = DefaultContext> {
+pub struct RcuStack<T, F = DefaultFlavor> {
     raw: RawStack<T>,
-    _unsend: PhantomUnsend<(T, C)>,
-    _unsync: PhantomUnsync<(T, C)>,
+    _unsend: PhantomUnsend<(T, F)>,
+    _unsync: PhantomUnsync<(T, F)>,
 }
 
-impl<T, C> RcuStack<T, C> {
+impl<T, F> RcuStack<T, F>
+where
+    F: RcuFlavor,
+{
     /// Creates a new RCU stack.
     pub fn new() -> Arc<Self> {
         Arc::new(RcuStack {
@@ -61,10 +65,10 @@ impl<T, C> RcuStack<T, C> {
     }
 
     /// Removes an element from the top of the stack.
-    pub fn pop(&self, guard: &C::Guard<'_>) -> Option<Ref<T, C::Flavor>>
+    pub fn pop<G>(&self, guard: &G) -> Option<Ref<T, F>>
     where
         T: Send,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         let _ = guard;
 
@@ -76,10 +80,10 @@ impl<T, C> RcuStack<T, C> {
     }
 
     /// Removes all elements from the stack.
-    pub fn pop_all(&self, _guard: &C::Guard<'_>) -> IterRef<T, C>
+    pub fn pop_all<G>(&self, _guard: &G) -> IterRef<T, F>
     where
         T: Send,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU critical section is enforced.
         // SAFETY: RCU grace period is enforced.
@@ -87,10 +91,10 @@ impl<T, C> RcuStack<T, C> {
     }
 
     /// Returns a reference to the element on top of the stack.
-    pub fn peek<'me, 'ctx, 'guard>(&'me self, _guard: &'guard C::Guard<'ctx>) -> Option<&'guard T>
+    pub fn peek<'me, 'guard, G>(&'me self, _guard: &'guard G) -> Option<&'guard T>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU critical section is enforced.
         let node = unsafe { self.raw.head() };
@@ -102,13 +106,10 @@ impl<T, C> RcuStack<T, C> {
     /// Returns an iterator over the stack.
     ///
     /// The iterator yields all items from top to bottom.
-    pub fn iter<'me, 'ctx, 'guard>(
-        &'me self,
-        guard: &'guard C::Guard<'ctx>,
-    ) -> Iter<'ctx, 'guard, T, C>
+    pub fn iter<'me, 'guard, G>(&'me self, guard: &'guard G) -> Iter<'guard, T, G>
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         // SAFETY: The RCU critical section is enforced.
         Iter::new(unsafe { self.raw.iter() }, guard)
@@ -123,24 +124,24 @@ impl<T, C> RcuStack<T, C> {
 /// #### Safety
 ///
 /// An [`RcuStack`] can be used to send `T` to another thread.
-unsafe impl<T, C> Send for RcuStack<T, C>
+unsafe impl<T, F> Send for RcuStack<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
 /// #### Safety
 ///
 /// An [`RcuStack`] can be used to share `T` between threads.
-unsafe impl<T, C> Sync for RcuStack<T, C>
+unsafe impl<T, F> Sync for RcuStack<T, F>
 where
     T: Sync,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
-impl<T, C> Drop for RcuStack<T, C> {
+impl<T, F> Drop for RcuStack<T, F> {
     fn drop(&mut self) {
         // SAFETY: The RCU read-lock is not needed there are no other writers.
         // SAFETY: The RCU grace period is not needed there are no other readers.
