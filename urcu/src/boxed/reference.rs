@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 use std::ops::Deref;
 
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::reference::RcuRef;
-use crate::rcu::RcuContext;
 
 /// A RCU reference to a element removed from a [`RcuBox`].
 ///
@@ -16,19 +16,19 @@ use crate::rcu::RcuContext;
 /// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
 /// [`RcuBox`]: crate::boxed::container::RcuBox
-pub struct Ref<T, C>
+pub struct Ref<T, F>
 where
     T: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     ptr: *mut T,
-    context: PhantomData<C>,
+    context: PhantomData<F>,
 }
 
-impl<T, C> Ref<T, C>
+impl<T, F> Ref<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     pub fn new(ptr: *mut T) -> Self {
         Self {
@@ -42,10 +42,10 @@ where
 ///
 /// * The reference is cleaned up upon dropping.
 /// * The reference does not expose mutable borrows.
-unsafe impl<T, C> RcuRef<C> for Ref<T, C>
+unsafe impl<T, F> RcuRef<F> for Ref<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Output = Box<T>;
 
@@ -62,17 +62,17 @@ where
 /// #### Safety
 ///
 /// An RCU reference can be sent to another thread if `T` implements [`Send`].
-unsafe impl<T, C> Send for Ref<T, C>
+unsafe impl<T, F> Send for Ref<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }
 
-impl<T, C> Drop for Ref<T, C>
+impl<T, F> Drop for Ref<T, F>
 where
     T: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
@@ -85,10 +85,10 @@ where
     }
 }
 
-impl<T, C> Deref for Ref<T, C>
+impl<T, F> Deref for Ref<T, F>
 where
     T: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Target = T;
 

@@ -61,7 +61,7 @@ impl<T, C> RcuStack<T, C> {
     }
 
     /// Removes an element from the top of the stack.
-    pub fn pop(&self, guard: &C::Guard<'_>) -> Option<Ref<T, C>>
+    pub fn pop(&self, guard: &C::Guard<'_>) -> Option<Ref<T, C::Flavor>>
     where
         T: Send,
         C: RcuReadContext,

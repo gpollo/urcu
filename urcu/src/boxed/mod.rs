@@ -9,6 +9,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::boxed::container::*;
+    use crate::rcu::flavor::DefaultFlavor;
     use crate::rcu::DefaultContext;
     use crate::utility::asserts::*;
 
@@ -36,11 +37,11 @@ mod asserts {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(Ref<SendButNotSync, DefaultContext>: Send);
-        assert_not_impl_all!(Ref<SendButNotSync, DefaultContext>: Sync);
+        assert_impl_all!(Ref<SendButNotSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendButNotSync, DefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(Ref<SendAndSync, DefaultContext>: Send);
-        assert_not_impl_all!(Ref<SendAndSync, DefaultContext>: Sync);
+        assert_impl_all!(Ref<SendAndSync, DefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendAndSync, DefaultFlavor>: Sync);
     }
 }

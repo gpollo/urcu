@@ -53,7 +53,7 @@ impl<T, C> RcuBox<T, C> {
     }
 
     /// Replaces the underlying data atomically.
-    pub fn replace(&self, data: T) -> Ref<T, C>
+    pub fn replace(&self, data: T) -> Ref<T, C::Flavor>
     where
         T: Send,
         C: RcuContext,

@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+use crate::flavor::RcuFlavor;
 use crate::hashmap::raw::RawNode;
-use crate::{RcuContext, RcuRef};
+use crate::RcuRef;
 
 /// An owned RCU reference to a element removed from an [`RcuHashMap`].
 ///
@@ -34,21 +35,21 @@ unsafe impl<K: Sync, V: Sync> Sync for RefOwned<K, V> {}
 /// An owned RCU reference to a element removed from an [`RcuHashMap`].
 ///
 /// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
-pub struct Ref<K, V, C>
+pub struct Ref<K, V, F>
 where
     K: Send + 'static,
     V: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     ptr: *mut RawNode<K, V>,
-    _context: PhantomData<*const C>,
+    _context: PhantomData<*const F>,
 }
 
-impl<K, V, C> Ref<K, V, C>
+impl<K, V, F> Ref<K, V, F>
 where
     K: Send,
     V: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     pub(crate) fn new(ptr: NonNull<RawNode<K, V>>) -> Self {
         Self {
@@ -68,11 +69,11 @@ where
     }
 }
 
-impl<K, V, C> Drop for Ref<K, V, C>
+impl<K, V, F> Drop for Ref<K, V, F>
 where
     K: Send + 'static,
     V: Send + 'static,
-    C: RcuContext + 'static,
+    F: RcuFlavor + 'static,
 {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
@@ -88,11 +89,11 @@ where
 /// #### Safety
 ///
 /// The memory reclamation upon dropping is properly deferred after the RCU grace period.
-unsafe impl<K, V, C> RcuRef<C> for Ref<K, V, C>
+unsafe impl<K, V, F> RcuRef<F> for Ref<K, V, F>
 where
     K: Send,
     V: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
     type Output = RefOwned<K, V>;
 
@@ -106,10 +107,10 @@ where
     }
 }
 
-unsafe impl<K, V, C> Send for Ref<K, V, C>
+unsafe impl<K, V, F> Send for Ref<K, V, F>
 where
     K: Send,
     V: Send,
-    C: RcuContext,
+    F: RcuFlavor,
 {
 }

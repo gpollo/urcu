@@ -13,4 +13,4 @@ pub type RefOwned<T> = reference::BoxRefOwned<RawNode<T>>;
 /// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
 /// [`RcuList`]: crate::list::container::RcuList
-pub type Ref<T, C> = reference::BoxRef<RawNode<T>, C>;
+pub type Ref<T, F> = reference::BoxRef<RawNode<T>, F>;

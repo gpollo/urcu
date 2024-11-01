@@ -4,7 +4,7 @@ use crate::stack::raw::RawNode;
 /// An owned RCU reference to a element removed from an [`RcuQueue`].
 ///
 /// [`RcuQueue`]: crate::queue::container::RcuQueue
-pub type RefOwned<T> = reference::BoxRefOwned<RawNode<T>>;
+pub type RefOwned<F> = reference::BoxRefOwned<RawNode<F>>;
 
 /// An RCU reference to a element removed from an [`RcuQueue`].
 ///
@@ -13,4 +13,4 @@ pub type RefOwned<T> = reference::BoxRefOwned<RawNode<T>>;
 /// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
 /// [`RcuQueue`]: crate::queue::container::RcuQueue
-pub type Ref<T, C> = reference::BoxRef<RawNode<T>, C>;
+pub type Ref<T, F> = reference::BoxRef<RawNode<T>, F>;

@@ -71,7 +71,7 @@ where
     T: Send + 'static,
     C: RcuReadContext + 'static,
 {
-    type Item = Ref<T, C>;
+    type Item = Ref<T, C::Flavor>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // SAFETY: The grace period is enforced by [`Ref`].

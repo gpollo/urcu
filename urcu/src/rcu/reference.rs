@@ -39,7 +39,7 @@ use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
 /// [^mborrow]: Unless your [`RcuRef`] has a mutable borrow of an [`RcuContext`].
 /// [^cborrow]: Unless your [`RcuRef`] has an immutable borrow of an [`RcuContext`].
 #[must_use]
-pub unsafe trait RcuRef<C> {
+pub unsafe trait RcuRef<F> {
     /// The output type after taking ownership.
     type Output;
 
@@ -51,10 +51,10 @@ pub unsafe trait RcuRef<C> {
     unsafe fn take_ownership_unchecked(self) -> Self::Output;
 
     /// Take ownership of the reference.
-    fn take_ownership(self, context: &mut C) -> Self::Output
+    fn take_ownership<C>(self, context: &mut C) -> Self::Output
     where
         Self: Sized,
-        C: RcuContext,
+        C: RcuContext<Flavor = F>,
     {
         context.rcu_synchronize();
 
@@ -69,12 +69,12 @@ pub unsafe trait RcuRef<C> {
     /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
     ///
     /// The callback is guaranteed to be executed on the current thread.
-    fn defer_cleanup(self, context: &mut C)
+    fn defer_cleanup<C>(self, context: &mut C)
     where
         Self: Sized,
-        C: RcuDeferContext,
+        C: RcuDeferContext<Flavor = F>,
     {
-        context.rcu_defer(RcuDeferFn::<_, C>::new(move || {
+        context.rcu_defer(RcuDeferFn::<_, F>::new(move || {
             // SAFETY: The caller already executed a RCU syncronization.
             unsafe {
                 self.take_ownership_unchecked();
@@ -89,10 +89,10 @@ pub unsafe trait RcuRef<C> {
     /// The function will internally call [`RcuReadContext::rcu_read_lock`].
     ///
     /// The reference must implement [`Send`] since the cleanup will be executed in an helper thread.
-    fn call_cleanup(self, context: &C)
+    fn call_cleanup<C>(self, context: &C)
     where
         Self: Sized + Send + 'static,
-        C: RcuReadContext + 'static,
+        C: RcuReadContext<Flavor = F> + 'static,
     {
         context.rcu_call(RcuCallFn::new(move || {
             // SAFETY: The caller already executed a RCU syncronization.
@@ -105,9 +105,9 @@ pub unsafe trait RcuRef<C> {
     fn safe_cleanup(self)
     where
         Self: Sized + Send + 'static,
-        C: RcuContext,
+        F: RcuFlavor,
     {
-        C::Flavor::rcu_cleanup(Box::new(move |context| {
+        F::rcu_cleanup(Box::new(move |context| {
             context.rcu_synchronize();
 
             // SAFETY: An RCU syncronization barrier was called.
@@ -121,9 +121,9 @@ pub unsafe trait RcuRef<C> {
 /// #### Safety
 ///
 /// It is the responsability of the underlying type to be safe.
-unsafe impl<T, C> RcuRef<C> for Option<T>
+unsafe impl<T, F> RcuRef<F> for Option<T>
 where
-    T: RcuRef<C>,
+    T: RcuRef<F>,
 {
     type Output = Option<T::Output>;
 
@@ -135,9 +135,9 @@ where
 /// #### Safety
 ///
 /// It is the responsability of the underlying type to be safe.
-unsafe impl<T, C> RcuRef<C> for Vec<T>
+unsafe impl<T, F> RcuRef<F> for Vec<T>
 where
-    T: RcuRef<C>,
+    T: RcuRef<F>,
 {
     type Output = Vec<T::Output>;
 
@@ -154,9 +154,9 @@ macro_rules! impl_rcu_ref_for_tuple {
             /// #### Safety
             ///
             /// It is the responsability of the underlying types to be safe.
-            unsafe impl<$([<T $x>]),*, C> RcuRef<C> for ($([<T $x>]),*)
+            unsafe impl<$([<T $x>]),*, F> RcuRef<F> for ($([<T $x>]),*)
             where
-                $([<T $x>]: RcuRef<C>),*,
+                $([<T $x>]: RcuRef<F>),*,
             {
                 type Output = ($([<T $x>]::Output),*,);
 
