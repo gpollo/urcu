@@ -3,7 +3,8 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use crate::boxed::reference::Ref;
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::RcuGuard;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
 /// Defines a RCU-enabled [`Box`].
@@ -24,13 +25,16 @@ use crate::utility::{PhantomUnsend, PhantomUnsync};
 /// It is safe to send an `Arc<RcuBox<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuBox<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuBox<T, C = DefaultContext> {
+pub struct RcuBox<T, F = DefaultFlavor> {
     ptr: AtomicPtr<T>,
-    _unsend: PhantomUnsend<C>,
-    _unsync: PhantomUnsync<C>,
+    _unsend: PhantomUnsend<F>,
+    _unsync: PhantomUnsync<F>,
 }
 
-impl<T, C> RcuBox<T, C> {
+impl<T, F> RcuBox<T, F>
+where
+    F: RcuFlavor,
+{
     /// Creates a new RCU box.
     pub fn new(data: T) -> Arc<Self> {
         Arc::new(Self {
@@ -41,10 +45,10 @@ impl<T, C> RcuBox<T, C> {
     }
 
     /// Returns a immutable reference to the data.
-    pub fn get<'me, 'ctx, 'guard>(&'me self, guard: &'guard C::Guard<'ctx>) -> &'guard T
+    pub fn get<'me, 'guard, G>(&'me self, guard: &'guard G) -> &'guard T
     where
         'me: 'guard,
-        C: RcuReadContext,
+        G: RcuGuard<Flavor = F>,
     {
         let _ = guard;
 
@@ -53,10 +57,9 @@ impl<T, C> RcuBox<T, C> {
     }
 
     /// Replaces the underlying data atomically.
-    pub fn replace(&self, data: T) -> Ref<T, C::Flavor>
+    pub fn replace(&self, data: T) -> Ref<T, F>
     where
         T: Send,
-        C: RcuContext,
     {
         let new_ptr = Box::into_raw(Box::new(data));
         let old_ptr = self.ptr.swap(new_ptr, Ordering::Release);
@@ -67,14 +70,14 @@ impl<T, C> RcuBox<T, C> {
 /// #### Safety
 ///
 /// An [`RcuBox`] can be used to send `T` to another thread.
-unsafe impl<T, C> Send for RcuBox<T, C> where T: Send {}
+unsafe impl<T, F> Send for RcuBox<T, F> where T: Send {}
 
 /// #### Safety
 ///
 /// An [`RcuBox`] can be used to share `T` between threads.
-unsafe impl<T, C> Sync for RcuBox<T, C> where T: Sync {}
+unsafe impl<T, F> Sync for RcuBox<T, F> where T: Sync {}
 
-impl<T, C> Drop for RcuBox<T, C> {
+impl<T, F> Drop for RcuBox<T, F> {
     fn drop(&mut self) {
         // SAFETY: The underlying pointer is never null.
         unsafe {
