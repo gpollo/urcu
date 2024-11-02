@@ -1,10 +1,10 @@
 #![feature(ptr_as_ref_unchecked)]
 #![doc = include_str!("../../README.md")]
 
-mod rcu;
 mod utility;
 
 pub mod collections;
+pub mod rcu;
 
 pub use crate::collections::boxed::container::RcuBox;
 pub use crate::collections::hashmap::container::RcuHashMap;
