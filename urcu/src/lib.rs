@@ -19,7 +19,6 @@ pub use crate::rcu::flavor::RcuFlavor;
 pub use crate::rcu::guard::RcuGuard;
 pub use crate::rcu::poller::RcuPoller;
 pub use crate::rcu::reference::{RcuBoxRef, RcuRef};
-pub use crate::rcu::{rcu_dereference, rcu_dereference_mut};
 
 pub mod prelude {
     pub use crate::{RcuFlavor, RcuGuard, RcuPoller, RcuRef};

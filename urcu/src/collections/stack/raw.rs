@@ -117,7 +117,7 @@ impl<T> RawStack<T> {
     ///
     /// The caller must be inside a RCU critical section.
     pub unsafe fn head(&self) -> *const RawNode<T> {
-        let handle = crate::rcu_dereference(self.handle.head);
+        let handle = crate::rcu::dereference(self.handle.head);
         if handle.is_null() {
             std::ptr::null()
         } else {
@@ -152,9 +152,9 @@ impl<T> RawIter<T> {
     /// The caller must be in a RCU critical section.
     unsafe fn new(stack: &lfs::__Stack) -> Self {
         Self {
-            node: crate::rcu_dereference(stack.head)
+            node: crate::rcu::dereference(stack.head)
                 .as_ref()
-                .map(|head| crate::rcu_dereference(&head.node as *const lfs::Node))
+                .map(|head| crate::rcu::dereference(&head.node as *const lfs::Node))
                 .unwrap_or(std::ptr::null()),
             _unsend: PhantomData,
             _unsync: PhantomData,
@@ -168,7 +168,7 @@ impl<T> RawIter<T> {
         match self.node.as_ref() {
             None => std::ptr::null(),
             Some(handle) => {
-                self.node = crate::rcu_dereference(handle.next);
+                self.node = crate::rcu::dereference(handle.next);
                 container_of!(handle as *const lfs::Node, RawNode<T>, handle)
             }
         }

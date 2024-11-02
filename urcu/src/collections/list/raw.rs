@@ -171,7 +171,7 @@ impl<T> RawIter<T, true> {
     /// The caller must be in a RCU critical section.
     pub unsafe fn from_back(list: &RawList<T>) -> Self {
         Self {
-            current: crate::rcu_dereference(list.back.next),
+            current: crate::rcu::dereference(list.back.next),
             last: &list.front,
             _unsend: PhantomData,
             _unsync: PhantomData,
@@ -185,7 +185,7 @@ impl<T> RawIter<T, false> {
     /// The caller must be in a RCU critical section.
     pub unsafe fn from_front(list: &RawList<T>) -> Self {
         Self {
-            current: crate::rcu_dereference(list.front.prev),
+            current: crate::rcu::dereference(list.front.prev),
             last: &list.back,
             _unsend: PhantomData,
             _unsync: PhantomData,
@@ -206,9 +206,9 @@ impl<T, const FORWARD: bool> RawIter<T, FORWARD> {
             None => std::ptr::null(),
             Some(handle) => {
                 self.current = if FORWARD {
-                    crate::rcu_dereference_mut(handle.next)
+                    crate::rcu::dereference_mut(handle.next)
                 } else {
-                    crate::rcu_dereference_mut(handle.prev)
+                    crate::rcu::dereference_mut(handle.prev)
                 };
 
                 container_of!(handle as *const list::Head, RawNode<T>, handle)

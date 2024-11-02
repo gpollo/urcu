@@ -16,7 +16,7 @@ pub(crate) mod reference;
 /// #### Safety
 ///
 /// * The thread must be inside a RCU critical section.
-pub unsafe fn rcu_dereference<T>(pointer: *const T) -> *const T {
+pub unsafe fn dereference<T>(pointer: *const T) -> *const T {
     // SAFETY: It is safe to cast the pointer to a void*.
     unsafe { urcu_sys::rcu_dereference(pointer as *mut std::ffi::c_void) as *const T }
 }
@@ -30,7 +30,7 @@ pub unsafe fn rcu_dereference<T>(pointer: *const T) -> *const T {
 /// #### Safety
 ///
 /// * The thread must be inside a RCU critical section.
-pub unsafe fn rcu_dereference_mut<T>(pointer: *mut T) -> *mut T {
+pub unsafe fn dereference_mut<T>(pointer: *mut T) -> *mut T {
     // SAFETY: It is safe to cast the pointer to a void*.
     unsafe { urcu_sys::rcu_dereference(pointer as *mut std::ffi::c_void) as *mut T }
 }
