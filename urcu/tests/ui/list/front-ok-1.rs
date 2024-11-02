@@ -1,5 +1,4 @@
-use urcu::{RcuContext, RcuReadContext, DefaultContext};
-use urcu::RcuList;
+use urcu::prelude::*;
 
 fn main() {
     let context = DefaultContext::rcu_register().unwrap();
