@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::boxed::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
 /// Defines a RCU-enabled [`Box`].

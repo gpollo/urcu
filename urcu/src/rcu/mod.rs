@@ -2,6 +2,7 @@ pub(crate) mod builder;
 pub(crate) mod callback;
 pub(crate) mod cleanup;
 pub(crate) mod flavor;
+pub(crate) mod guard;
 pub(crate) mod reference;
 
 use std::cell::Cell;
@@ -10,12 +11,6 @@ use std::marker::PhantomData;
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::flavor::RcuFlavor;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
-
-/// This trait defines a guard for a read-side lock.
-pub trait RcuGuard {
-    /// Defines the flavor of the guard.
-    type Flavor: RcuFlavor;
-}
 
 /// This trait defines a poller of the grace period.
 pub trait RcuPoller {
@@ -127,40 +122,6 @@ pub unsafe trait RcuDeferContext: RcuContext {
     fn rcu_defer<F>(&mut self, callback: Box<F>)
     where
         F: RcuDefer;
-}
-
-macro_rules! define_rcu_guard {
-    ($kind:ident, $guard:ident, $flavor:ident, $context:ident) => {
-        #[doc = concat!("Defines a guard for a RCU critical section (`liburcu-", stringify!($kind), "`).")]
-        #[allow(dead_code)]
-        pub struct $guard<'a>(PhantomUnsend<&'a ()>, PhantomUnsync<&'a ()>);
-
-        impl<'a> $guard<'a> {
-            fn new<C: RcuContext>(context: &'a C) -> Self {
-                let _ = context;
-
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is read-registered at context's creation.
-                // SAFETY: The critical section is unlocked at guard's drop.
-                unsafe { $flavor::unchecked_rcu_read_lock() };
-
-                Self(PhantomData, PhantomData)
-            }
-        }
-
-        impl<'a> RcuGuard for $guard<'a> {
-            type Flavor = $flavor;
-        }
-
-        impl<'a> Drop for $guard<'a> {
-            fn drop(&mut self) {
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is read-registered at context's creation.
-                // SAFETY: The critical section is locked at guard's creation.
-                unsafe { $flavor::unchecked_rcu_read_unlock() };
-            }
-        }
-    };
 }
 
 macro_rules! define_rcu_poller {
@@ -366,9 +327,9 @@ pub mod context {
     pub(crate) mod bp {
         use super::*;
 
-        pub use crate::rcu::flavor::RcuFlavorBp;
+        use crate::rcu::flavor::RcuFlavorBp;
+        use crate::rcu::guard::RcuGuardBp;
 
-        define_rcu_guard!(bp, RcuGuardBp, RcuFlavorBp, RcuContextBp);
         define_rcu_poller!(bp, RcuPollerBp, RcuFlavorBp, RcuContextBp);
         define_rcu_context!(bp, RcuContextBp, RcuFlavorBp, RcuGuardBp, RcuPollerBp);
     }
@@ -377,9 +338,9 @@ pub mod context {
     pub(crate) mod mb {
         use super::*;
 
-        pub use crate::rcu::flavor::RcuFlavorMb;
+        use crate::rcu::flavor::RcuFlavorMb;
+        use crate::rcu::guard::RcuGuardMb;
 
-        define_rcu_guard!(mb, RcuGuardMb, RcuFlavorMb, RcuContextMb);
         define_rcu_poller!(mb, RcuPollerMb, RcuFlavorMb, RcuContextMb);
         define_rcu_context!(mb, RcuContextMb, RcuFlavorMb, RcuGuardMb, RcuPollerMb);
     }
@@ -388,9 +349,9 @@ pub mod context {
     pub(crate) mod memb {
         use super::*;
 
-        pub use crate::rcu::flavor::RcuFlavorMemb;
+        use crate::rcu::flavor::RcuFlavorMemb;
+        use crate::rcu::guard::RcuGuardMemb;
 
-        define_rcu_guard!(memb, RcuGuardMemb, RcuFlavorMemb, RcuContextMemb);
         define_rcu_poller!(memb, RcuPollerMemb, RcuFlavorMemb, RcuContextMemb);
         define_rcu_context!(
             memb,
@@ -405,9 +366,9 @@ pub mod context {
     pub(crate) mod qsbr {
         use super::*;
 
-        pub use crate::rcu::flavor::RcuFlavorQsbr;
+        use crate::rcu::flavor::RcuFlavorQsbr;
+        use crate::rcu::guard::RcuGuardQsbr;
 
-        define_rcu_guard!(qsbr, RcuGuardQsbr, RcuFlavorQsbr, RcuContextQsbr);
         define_rcu_poller!(qsbr, RcuPollerQsbr, RcuFlavorQsbr, RcuContextQsbr);
         define_rcu_context!(
             qsbr,
@@ -496,9 +457,6 @@ mod asserts {
         assert_not_impl_all!(RcuPollerBp: Send);
         assert_not_impl_all!(RcuPollerBp: Sync);
 
-        assert_not_impl_all!(RcuGuardBp: Send);
-        assert_not_impl_all!(RcuGuardBp: Sync);
-
         assert_not_impl_all!(RcuContextBp: Send);
         assert_not_impl_all!(RcuContextBp: Sync);
     }
@@ -511,9 +469,6 @@ mod asserts {
 
         assert_not_impl_all!(RcuPollerMb: Send);
         assert_not_impl_all!(RcuPollerMb: Sync);
-
-        assert_not_impl_all!(RcuGuardMb: Send);
-        assert_not_impl_all!(RcuGuardMb: Sync);
 
         assert_not_impl_all!(RcuContextMb: Send);
         assert_not_impl_all!(RcuContextMb: Sync);
@@ -528,9 +483,6 @@ mod asserts {
         assert_not_impl_all!(RcuPollerMemb: Send);
         assert_not_impl_all!(RcuPollerMemb: Sync);
 
-        assert_not_impl_all!(RcuGuardMemb: Send);
-        assert_not_impl_all!(RcuGuardMemb: Sync);
-
         assert_not_impl_all!(RcuContextMemb: Send);
         assert_not_impl_all!(RcuContextMemb: Sync);
     }
@@ -543,9 +495,6 @@ mod asserts {
 
         assert_not_impl_all!(RcuPollerQsbr: Send);
         assert_not_impl_all!(RcuPollerQsbr: Sync);
-
-        assert_not_impl_all!(RcuGuardQsbr: Send);
-        assert_not_impl_all!(RcuGuardQsbr: Sync);
 
         assert_not_impl_all!(RcuContextQsbr: Send);
         assert_not_impl_all!(RcuContextQsbr: Sync);

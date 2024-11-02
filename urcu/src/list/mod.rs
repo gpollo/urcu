@@ -16,7 +16,7 @@ mod asserts {
 
     use crate::flavor::DefaultFlavor;
     use crate::list::container::RcuList;
-    use crate::rcu::context::RcuGuardMemb;
+    use crate::rcu::guard::RcuGuardMemb;
     use crate::utility::asserts::*;
 
     mod rcu_list {

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::queue::raw::{RawNode, RawQueue};
 use crate::queue::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
 
 /// Defines a RCU wait-free queue.

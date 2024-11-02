@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::list::raw::RawIter;
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///

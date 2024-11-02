@@ -9,7 +9,7 @@ use crate::list::iterator::Iter;
 use crate::list::raw::{RawIter, RawList, RawNode};
 use crate::list::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
 
 /// Defines a RCU doubly linked list.

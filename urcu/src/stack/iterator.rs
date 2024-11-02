@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 
 use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 use crate::stack::raw::{RawIter, RawIterRef};
 use crate::stack::reference::Ref;
 use crate::utility::*;

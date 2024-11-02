@@ -4,7 +4,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
-use crate::rcu::RcuGuard;
+use crate::rcu::guard::RcuGuard;
 use crate::stack::iterator::{Iter, IterRef};
 use crate::stack::raw::{RawNode, RawStack};
 use crate::stack::reference::Ref;
