@@ -195,6 +195,7 @@ macro_rules! urcu_func {
 
 macro_rules! define_flavor {
     ($name:ident, $flavor:ident, $context:ident) => {
+        #[doc = concat!("Defines a RCU flavor (`liburcu-", stringify!($flavor), "`).")]
         pub struct $name;
 
         impl RcuFlavor for $name {
@@ -403,28 +404,3 @@ pub use memb::*;
 
 #[cfg(feature = "flavor-qsbr")]
 pub use qsbr::*;
-
-/// Defines the default RCU flavor.
-#[cfg(feature = "flavor-memb")]
-pub type DefaultFlavor = RcuFlavorMemb;
-
-/// Defines the default RCU flavor.
-#[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
-pub type DefaultFlavor = RcuFlavorMb;
-
-/// Defines the default RCU flavor.
-#[cfg(all(
-    not(feature = "flavor-memb"),
-    not(feature = "flavor-mb"),
-    feature = "flavor-bp"
-))]
-pub type DefaultFlavor = RcuFlavorBp;
-
-/// Defines the default RCU flavor.
-#[cfg(all(
-    not(feature = "flavor-memb"),
-    not(feature = "flavor-mb"),
-    not(feature = "flavor-bp"),
-    feature = "flavor-qsbr"
-))]
-pub type DefaultFlavor = RcuFlavorQsbr;

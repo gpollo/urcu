@@ -66,3 +66,95 @@ pub mod qsbr {
     pub use crate::rcu::guard::RcuGuardQsbr;
     pub use crate::rcu::poller::RcuPollerQsbr;
 }
+
+pub mod default {
+    #[cfg(feature = "flavor-memb")]
+    mod memb {
+        /// Defines the default RCU flavor.
+        pub type DefaultFlavor = crate::rcu::flavor::RcuFlavorMemb;
+
+        /// Defines the default RCU guard.
+        pub type DefaultGuard<'a> = crate::rcu::guard::RcuGuardMemb<'a>;
+
+        /// Defines the default RCU poller.
+        pub type DefaultPoller<'a> = crate::rcu::poller::RcuPollerMemb<'a>;
+
+        /// Defines the default RCU context.
+        pub type DefaultContext = crate::rcu::context::RcuContextMemb<true, true>;
+    }
+
+    #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
+    mod mb {
+        /// Defines the default RCU flavor.
+        pub type DefaultFlavor = crate::rcu::flavor::RcuFlavorMb;
+
+        /// Defines the default RCU guard.
+        pub type DefaultGuard<'a> = crate::rcu::guard::RcuGuardMb<'a>;
+
+        /// Defines the default RCU poller.
+        pub type DefaultPoller<'a> = crate::rcu::poller::RcuPollerMb<'a>;
+
+        /// Defines the default RCU context.
+        pub type DefaultContext = crate::rcu::context::RcuContextMb<true, true>;
+    }
+
+    #[cfg(all(
+        not(feature = "flavor-memb"),
+        not(feature = "flavor-mb"),
+        feature = "flavor-bp"
+    ))]
+    mod bp {
+        /// Defines the default RCU flavor.
+        pub type DefaultFlavor = crate::rcu::flavor::RcuFlavorBp;
+
+        /// Defines the default RCU guard.
+        pub type DefaultGuard<'a> = crate::rcu::guard::RcuGuardBp<'a>;
+
+        /// Defines the default RCU poller.
+        pub type DefaultPoller<'a> = crate::rcu::poller::RcuPollerBp<'a>;
+
+        /// Defines the default RCU context.
+        pub type DefaultContext = crate::rcu::context::RcuContextBp<true, true>;
+    }
+
+    #[cfg(all(
+        not(feature = "flavor-memb"),
+        not(feature = "flavor-mb"),
+        not(feature = "flavor-bp"),
+        feature = "flavor-qsbr"
+    ))]
+    mod qsbr {
+        /// Defines the default RCU flavor.
+        pub type DefaultFlavor = crate::rcu::flavor::RcuFlavorQsbr;
+
+        /// Defines the default RCU guard.
+        pub type DefaultGuard<'a> = crate::rcu::guard::RcuGuardQsbr<'a>;
+
+        /// Defines the default RCU poller.
+        pub type DefaultPoller<'a> = crate::rcu::poller::RcuPollerQsbr<'a>;
+
+        /// Defines the default RCU context.
+        pub type DefaultContext = crate::rcu::context::RcuContextQsbr<true, true>;
+    }
+
+    #[cfg(feature = "flavor-memb")]
+    pub use memb::*;
+
+    #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
+    pub use mb::*;
+
+    #[cfg(all(
+        not(feature = "flavor-memb"),
+        not(feature = "flavor-mb"),
+        feature = "flavor-bp"
+    ))]
+    pub use bp::*;
+
+    #[cfg(all(
+        not(feature = "flavor-memb"),
+        not(feature = "flavor-mb"),
+        not(feature = "flavor-bp"),
+        feature = "flavor-qsbr"
+    ))]
+    pub use qsbr::*;
+}

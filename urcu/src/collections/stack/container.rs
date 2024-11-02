@@ -6,7 +6,8 @@ use std::sync::Arc;
 use crate::collections::stack::iterator::{Iter, IterRef};
 use crate::collections::stack::raw::{RawNode, RawStack};
 use crate::collections::stack::reference::Ref;
-use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::default::DefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
 

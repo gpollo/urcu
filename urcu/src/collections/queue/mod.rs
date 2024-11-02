@@ -13,7 +13,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::queue::container::RcuQueue;
-    use crate::rcu::flavor::DefaultFlavor;
+    use crate::rcu::default::DefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_queue {

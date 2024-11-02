@@ -8,7 +8,8 @@ use anyhow::{bail, Result};
 use crate::collections::list::iterator::Iter;
 use crate::collections::list::raw::{RawIter, RawList, RawNode};
 use crate::collections::list::reference::Ref;
-use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::default::DefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
 

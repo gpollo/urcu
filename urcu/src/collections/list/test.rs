@@ -1,5 +1,6 @@
 use crate::collections::list::container::RcuList;
-use crate::rcu::context::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::context::{RcuContext, RcuReadContext};
+use crate::rcu::default::DefaultContext;
 use crate::rcu::reference::RcuRef;
 
 #[test]

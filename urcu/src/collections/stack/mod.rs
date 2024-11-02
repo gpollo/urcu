@@ -15,7 +15,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::stack::container::RcuStack;
-    use crate::rcu::flavor::DefaultFlavor;
+    use crate::rcu::default::DefaultFlavor;
     use crate::rcu::guard::RcuGuardMemb;
     use crate::utility::asserts::*;
 

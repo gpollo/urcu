@@ -276,7 +276,7 @@ macro_rules! define_rcu_context {
 }
 
 #[cfg(feature = "flavor-bp")]
-pub(crate) mod bp {
+mod bp {
     use super::*;
 
     use crate::rcu::flavor::RcuFlavorBp;
@@ -287,7 +287,7 @@ pub(crate) mod bp {
 }
 
 #[cfg(feature = "flavor-mb")]
-pub(crate) mod mb {
+mod mb {
     use super::*;
 
     use crate::rcu::flavor::RcuFlavorMb;
@@ -298,7 +298,7 @@ pub(crate) mod mb {
 }
 
 #[cfg(feature = "flavor-memb")]
-pub(crate) mod memb {
+mod memb {
     use super::*;
 
     use crate::rcu::flavor::RcuFlavorMemb;
@@ -315,7 +315,7 @@ pub(crate) mod memb {
 }
 
 #[cfg(feature = "flavor-qsbr")]
-pub(crate) mod qsbr {
+mod qsbr {
     use super::*;
 
     use crate::rcu::flavor::RcuFlavorQsbr;
@@ -342,31 +342,6 @@ pub use memb::*;
 
 #[cfg(feature = "flavor-qsbr")]
 pub use qsbr::*;
-
-/// Defines the default RCU context.
-#[cfg(feature = "flavor-memb")]
-pub type DefaultContext = memb::RcuContextMemb;
-
-/// Defines the default RCU context.
-#[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
-pub type DefaultContext = mb::RcuContextMb;
-
-/// Defines the default RCU context.
-#[cfg(all(
-    not(feature = "flavor-memb"),
-    not(feature = "flavor-mb"),
-    feature = "flavor-bp"
-))]
-pub type DefaultContext = bp::RcuContextBp;
-
-/// Defines the default RCU context.
-#[cfg(all(
-    not(feature = "flavor-memb"),
-    not(feature = "flavor-mb"),
-    not(feature = "flavor-bp"),
-    feature = "flavor-qsbr"
-))]
-pub type DefaultContext = qsbr::RcuContextQsbr;
 
 mod asserts {
     use static_assertions::assert_not_impl_all;

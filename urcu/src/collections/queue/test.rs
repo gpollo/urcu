@@ -1,5 +1,6 @@
 use crate::collections::queue::container::RcuQueue;
-use crate::rcu::context::{DefaultContext, RcuContext, RcuReadContext};
+use crate::rcu::context::{RcuContext, RcuReadContext};
+use crate::rcu::default::DefaultContext;
 
 #[test]
 fn simple() {

@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use crate::collections::queue::raw::{RawNode, RawQueue};
 use crate::collections::queue::reference::Ref;
-use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::default::DefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
 

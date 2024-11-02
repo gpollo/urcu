@@ -7,7 +7,8 @@ use anyhow::Result;
 use crate::collections::hashmap::iterator::Iter;
 use crate::collections::hashmap::raw::RawMap;
 use crate::collections::hashmap::reference::Ref;
-use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
+use crate::rcu::default::DefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::{RcuGuard, RcuReadContext, RcuRef};
 
 /// Defines a RCU lock-free hashmap.
