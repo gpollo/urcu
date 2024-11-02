@@ -52,7 +52,7 @@ mod static_linking {
                 .unwrap()
                 .join("urcu-src");
 
-            std::fs::create_dir_all(&out_dir.join("urcu")).unwrap();
+            std::fs::create_dir_all(out_dir.join("urcu")).unwrap();
 
             let _ = std::fs::copy(
                 include_dir.join("urcu/config.h.in"),
