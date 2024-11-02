@@ -4,7 +4,7 @@ use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
 use crate::rcu::builder::RcuContextBuilder;
 use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
-use crate::rcu::RcuContext;
+use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
 
 /// This trait defines the API from the C library.
 pub trait RcuFlavor {
@@ -403,8 +403,6 @@ pub use memb::*;
 
 #[cfg(feature = "flavor-qsbr")]
 pub use qsbr::*;
-
-use super::{RcuDeferContext, RcuReadContext};
 
 /// Defines the default RCU flavor.
 #[cfg(feature = "flavor-memb")]

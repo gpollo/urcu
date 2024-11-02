@@ -3,6 +3,7 @@ pub(crate) mod callback;
 pub(crate) mod cleanup;
 pub(crate) mod flavor;
 pub(crate) mod guard;
+pub(crate) mod poller;
 pub(crate) mod reference;
 
 use std::cell::Cell;
@@ -10,13 +11,8 @@ use std::marker::PhantomData;
 
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::flavor::RcuFlavor;
+use crate::rcu::poller::RcuPoller;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
-
-/// This trait defines a poller of the grace period.
-pub trait RcuPoller {
-    /// Checks if the grace period is over for this poller.
-    fn grace_period_finished(&self) -> bool;
-}
 
 /// This trait defines the per-thread RCU context.
 ///
@@ -122,39 +118,6 @@ pub unsafe trait RcuDeferContext: RcuContext {
     fn rcu_defer<F>(&mut self, callback: Box<F>)
     where
         F: RcuDefer;
-}
-
-macro_rules! define_rcu_poller {
-    ($kind:ident, $poller:ident, $flavor:ident, $context:ident) => {
-        #[doc = concat!("Defines a grace period poller (`liburcu-", stringify!($kind), "`).")]
-        #[allow(dead_code)]
-        pub struct $poller<'a>(
-            PhantomUnsend<&'a ()>,
-            PhantomUnsync<&'a ()>,
-            urcu_sys::RcuPollState,
-        );
-
-        impl<'a> $poller<'a> {
-            fn new<C: RcuContext>(context: &'a C) -> Self {
-                let _ = context;
-
-                Self(PhantomData, PhantomData, {
-                    // SAFETY: The thread is initialized at context's creation.
-                    // SAFETY: The thread is read-registered at context's creation.
-                    unsafe { $flavor::unchecked_rcu_poll_start() }
-                })
-            }
-        }
-
-        impl<'a> RcuPoller for $poller<'a> {
-            fn grace_period_finished(&self) -> bool {
-                // SAFETY: The thread is initialized at context's creation.
-                // SAFETY: The thread is read-registered at context's creation.
-                // SAFETY: The handle is created at poller's creation.
-                unsafe { $flavor::unchecked_rcu_poll_check(self.2) }
-            }
-        }
-    };
 }
 
 macro_rules! define_rcu_context {
@@ -329,8 +292,8 @@ pub mod context {
 
         use crate::rcu::flavor::RcuFlavorBp;
         use crate::rcu::guard::RcuGuardBp;
+        use crate::rcu::poller::RcuPollerBp;
 
-        define_rcu_poller!(bp, RcuPollerBp, RcuFlavorBp, RcuContextBp);
         define_rcu_context!(bp, RcuContextBp, RcuFlavorBp, RcuGuardBp, RcuPollerBp);
     }
 
@@ -340,8 +303,8 @@ pub mod context {
 
         use crate::rcu::flavor::RcuFlavorMb;
         use crate::rcu::guard::RcuGuardMb;
+        use crate::rcu::poller::RcuPollerMb;
 
-        define_rcu_poller!(mb, RcuPollerMb, RcuFlavorMb, RcuContextMb);
         define_rcu_context!(mb, RcuContextMb, RcuFlavorMb, RcuGuardMb, RcuPollerMb);
     }
 
@@ -351,8 +314,8 @@ pub mod context {
 
         use crate::rcu::flavor::RcuFlavorMemb;
         use crate::rcu::guard::RcuGuardMemb;
+        use crate::rcu::poller::RcuPollerMemb;
 
-        define_rcu_poller!(memb, RcuPollerMemb, RcuFlavorMemb, RcuContextMemb);
         define_rcu_context!(
             memb,
             RcuContextMemb,
@@ -368,8 +331,8 @@ pub mod context {
 
         use crate::rcu::flavor::RcuFlavorQsbr;
         use crate::rcu::guard::RcuGuardQsbr;
+        use crate::rcu::poller::RcuPollerQsbr;
 
-        define_rcu_poller!(qsbr, RcuPollerQsbr, RcuFlavorQsbr, RcuContextQsbr);
         define_rcu_context!(
             qsbr,
             RcuContextQsbr,
@@ -454,9 +417,6 @@ mod asserts {
 
         use crate::rcu::context::bp::*;
 
-        assert_not_impl_all!(RcuPollerBp: Send);
-        assert_not_impl_all!(RcuPollerBp: Sync);
-
         assert_not_impl_all!(RcuContextBp: Send);
         assert_not_impl_all!(RcuContextBp: Sync);
     }
@@ -466,9 +426,6 @@ mod asserts {
         use super::*;
 
         use crate::rcu::context::mb::*;
-
-        assert_not_impl_all!(RcuPollerMb: Send);
-        assert_not_impl_all!(RcuPollerMb: Sync);
 
         assert_not_impl_all!(RcuContextMb: Send);
         assert_not_impl_all!(RcuContextMb: Sync);
@@ -480,9 +437,6 @@ mod asserts {
 
         use crate::rcu::context::memb::*;
 
-        assert_not_impl_all!(RcuPollerMemb: Send);
-        assert_not_impl_all!(RcuPollerMemb: Sync);
-
         assert_not_impl_all!(RcuContextMemb: Send);
         assert_not_impl_all!(RcuContextMemb: Sync);
     }
@@ -492,9 +446,6 @@ mod asserts {
         use super::*;
 
         use crate::rcu::context::qsbr::*;
-
-        assert_not_impl_all!(RcuPollerQsbr: Send);
-        assert_not_impl_all!(RcuPollerQsbr: Sync);
 
         assert_not_impl_all!(RcuContextQsbr: Send);
         assert_not_impl_all!(RcuContextQsbr: Sync);
