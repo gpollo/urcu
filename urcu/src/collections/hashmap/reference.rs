@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 use crate::collections::hashmap::raw::RawNode;
-use crate::flavor::RcuFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::RcuRef;
 
 /// An owned RCU reference to a element removed from an [`RcuHashMap`].

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::rcu::context::RcuContext;
 use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::RcuContext;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
 /// This trait defines a guard for a read-side lock.

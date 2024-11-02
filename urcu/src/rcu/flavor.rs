@@ -4,7 +4,7 @@ use urcu_sys::{RcuFlavorApi, RcuHead, RcuPollState};
 
 use crate::rcu::builder::RcuContextBuilder;
 use crate::rcu::cleanup::{RcuCleaner, RcuCleanup, RcuCleanupMut};
-use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
+use crate::rcu::context::{RcuContext, RcuDeferContext, RcuReadContext};
 
 /// This trait defines the API from the C library.
 pub trait RcuFlavor {

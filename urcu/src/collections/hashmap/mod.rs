@@ -15,7 +15,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::hashmap::container::RcuHashMap;
-    use crate::flavor::DefaultFlavor;
+    use crate::rcu::flavor::DefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_hashmap {

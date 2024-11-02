@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::rcu::RcuContext;
+use crate::rcu::context::RcuContext;
 
 pub struct RcuContextBuilder<F, const READ: bool = false, const DEFER: bool = false>(
     PhantomData<F>,

@@ -10,7 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Once, RwLock};
 use std::thread::JoinHandle;
 
-use super::RcuContext;
+use crate::rcu::context::RcuContext;
 
 /// Defines the cleanup callback signature.
 pub type RcuCleanup<C> = Box<dyn FnOnce(&C) + Send + 'static>;

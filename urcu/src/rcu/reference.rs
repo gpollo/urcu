@@ -3,8 +3,8 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 
 use crate::rcu::callback::{RcuCallFn, RcuDeferFn};
+use crate::rcu::context::{RcuContext, RcuDeferContext, RcuReadContext};
 use crate::rcu::flavor::RcuFlavor;
-use crate::rcu::{RcuContext, RcuDeferContext, RcuReadContext};
 use crate::utility::*;
 
 /// This trait defines a RCU reference that can be owned after a RCU grace period.

@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
 use crate::collections::stack::container::RcuStack;
+use crate::rcu::context::{DefaultContext, RcuContext, RcuReadContext};
 use crate::rcu::reference::RcuRef;
-use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 
 #[test]
 fn peek() {
