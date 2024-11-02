@@ -5,7 +5,6 @@ mod rcu;
 mod utility;
 
 pub mod collections;
-pub mod shared;
 
 pub use crate::collections::boxed::container::RcuBox;
 pub use crate::collections::hashmap::container::RcuHashMap;
@@ -18,7 +17,7 @@ pub use crate::rcu::flavor::DefaultFlavor;
 pub use crate::rcu::flavor::RcuFlavor;
 pub use crate::rcu::guard::RcuGuard;
 pub use crate::rcu::poller::RcuPoller;
-pub use crate::rcu::reference::*;
+pub use crate::rcu::reference::{RcuBoxRef, RcuRef};
 pub use crate::rcu::*;
 
 pub mod prelude {
