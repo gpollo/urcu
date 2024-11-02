@@ -1,4 +1,4 @@
-use crate::hashmap::container::RcuHashMap;
+use crate::collections::hashmap::container::RcuHashMap;
 use crate::rcu::reference::RcuRef;
 use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 

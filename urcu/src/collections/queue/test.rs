@@ -1,4 +1,4 @@
-use crate::queue::container::RcuQueue;
+use crate::collections::queue::container::RcuQueue;
 use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 
 #[test]

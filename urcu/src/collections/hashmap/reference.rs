@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+use crate::collections::hashmap::raw::RawNode;
 use crate::flavor::RcuFlavor;
-use crate::hashmap::raw::RawNode;
 use crate::RcuRef;
 
 /// An owned RCU reference to a element removed from an [`RcuHashMap`].
 ///
-/// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
+/// [`RcuHashMap`]: crate::collections::hashmap::container::RcuHashMap
 pub struct RefOwned<K, V>(Box<RawNode<K, V>>);
 
 impl<K, V> RefOwned<K, V> {
@@ -34,7 +34,7 @@ unsafe impl<K: Sync, V: Sync> Sync for RefOwned<K, V> {}
 
 /// An owned RCU reference to a element removed from an [`RcuHashMap`].
 ///
-/// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
+/// [`RcuHashMap`]: crate::collections::hashmap::container::RcuHashMap
 pub struct Ref<K, V, F>
 where
     K: Send + 'static,

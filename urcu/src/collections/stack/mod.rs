@@ -6,17 +6,17 @@ pub(crate) mod reference;
 #[cfg(test)]
 mod test;
 
-pub use crate::stack::iterator::*;
-pub use crate::stack::reference::*;
+pub use crate::collections::stack::iterator::*;
+pub use crate::collections::stack::reference::*;
 
 mod asserts {
     use super::*;
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
+    use crate::collections::stack::container::RcuStack;
     use crate::rcu::flavor::DefaultFlavor;
     use crate::rcu::guard::RcuGuardMemb;
-    use crate::stack::container::RcuStack;
     use crate::utility::asserts::*;
 
     mod rcu_list {

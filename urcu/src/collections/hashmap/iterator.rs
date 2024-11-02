@@ -1,8 +1,8 @@
-use crate::hashmap::raw::RawIter;
+use crate::collections::hashmap::raw::RawIter;
 
 /// An iterator over the nodes of an [`RcuHashMap`].
 ///
-/// [`RcuHashMap`]: crate::hashmap::container::RcuHashMap
+/// [`RcuHashMap`]: crate::collections::hashmap::container::RcuHashMap
 pub struct Iter<'guard, K, V, F>(RawIter<'guard, K, V, F>)
 where
     K: 'guard,

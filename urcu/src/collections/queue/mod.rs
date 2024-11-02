@@ -5,14 +5,14 @@ pub(crate) mod reference;
 #[cfg(test)]
 mod test;
 
-pub use crate::queue::reference::*;
+pub use crate::collections::queue::reference::*;
 
 mod asserts {
     use super::*;
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::queue::container::RcuQueue;
+    use crate::collections::queue::container::RcuQueue;
     use crate::rcu::flavor::DefaultFlavor;
     use crate::utility::asserts::*;
 

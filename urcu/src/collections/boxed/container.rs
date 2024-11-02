@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
-use crate::boxed::reference::Ref;
+use crate::collections::boxed::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
 use crate::rcu::guard::RcuGuard;
 use crate::utility::{PhantomUnsend, PhantomUnsync};

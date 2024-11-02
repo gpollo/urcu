@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::hashmap::iterator::Iter;
-use crate::hashmap::raw::RawMap;
-use crate::hashmap::reference::Ref;
+use crate::collections::hashmap::iterator::Iter;
+use crate::collections::hashmap::raw::RawMap;
+use crate::collections::hashmap::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
 use crate::{RcuGuard, RcuReadContext, RcuRef};
 

@@ -1,4 +1,4 @@
-use crate::list::container::RcuList;
+use crate::collections::list::container::RcuList;
 use crate::rcu::reference::RcuRef;
 use crate::rcu::{DefaultContext, RcuContext, RcuReadContext};
 

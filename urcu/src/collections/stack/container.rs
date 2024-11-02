@@ -3,11 +3,11 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
+use crate::collections::stack::iterator::{Iter, IterRef};
+use crate::collections::stack::raw::{RawNode, RawStack};
+use crate::collections::stack::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
 use crate::rcu::guard::RcuGuard;
-use crate::stack::iterator::{Iter, IterRef};
-use crate::stack::raw::{RawNode, RawStack};
-use crate::stack::reference::Ref;
 use crate::utility::*;
 
 /// Defines a RCU wait-free stack.

@@ -6,16 +6,16 @@ pub(crate) mod reference;
 #[cfg(test)]
 mod test;
 
-pub use crate::list::iterator::*;
-pub use crate::list::reference::*;
+pub use crate::collections::list::iterator::*;
+pub use crate::collections::list::reference::*;
 
 mod asserts {
     use super::*;
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
+    use crate::collections::list::container::RcuList;
     use crate::flavor::DefaultFlavor;
-    use crate::list::container::RcuList;
     use crate::rcu::guard::RcuGuardMemb;
     use crate::utility::asserts::*;
 

@@ -2,15 +2,15 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
+use crate::collections::stack::raw::{RawIter, RawIterRef};
+use crate::collections::stack::reference::Ref;
 use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
-use crate::stack::raw::{RawIter, RawIterRef};
-use crate::stack::reference::Ref;
 use crate::utility::*;
 
 /// An iterator over the nodes of an [`RcuStack`].
 ///
-/// [`RcuStack`]: crate::stack::container::RcuStack
+/// [`RcuStack`]: crate::collections::stack::container::RcuStack
 pub struct Iter<'guard, T, G>
 where
     G: RcuGuard,
@@ -50,7 +50,7 @@ where
 
 /// An iterator over popped nodes of an [`RcuStack`].
 ///
-/// [`RcuStack`]: crate::stack::container::RcuStack
+/// [`RcuStack`]: crate::collections::stack::container::RcuStack
 pub struct IterRef<T, F> {
     raw: RawIterRef<T>,
     _unsend: PhantomUnsend<F>,

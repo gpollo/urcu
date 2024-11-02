@@ -6,16 +6,16 @@ pub(crate) mod reference;
 #[cfg(test)]
 mod test;
 
-pub use crate::hashmap::iterator::*;
-pub use crate::hashmap::reference::*;
+pub use crate::collections::hashmap::iterator::*;
+pub use crate::collections::hashmap::reference::*;
 
 mod asserts {
     use super::*;
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
+    use crate::collections::hashmap::container::RcuHashMap;
     use crate::flavor::DefaultFlavor;
-    use crate::hashmap::container::RcuHashMap;
     use crate::utility::asserts::*;
 
     mod rcu_hashmap {

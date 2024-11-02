@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
-use crate::list::raw::RawIter;
+use crate::collections::list::raw::RawIter;
 use crate::rcu::guard::RcuGuard;
 
 /// An iterator over the nodes of an [`RcuList`].
 ///
-/// [`RcuList`]: crate::list::container::RcuList
+/// [`RcuList`]: crate::collections::list::container::RcuList
 pub struct Iter<'guard, T, G, const FORWARD: bool>
 where
     G: RcuGuard,

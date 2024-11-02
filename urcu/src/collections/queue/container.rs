@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use crate::queue::raw::{RawNode, RawQueue};
-use crate::queue::reference::Ref;
+use crate::collections::queue::raw::{RawNode, RawQueue};
+use crate::collections::queue::reference::Ref;
 use crate::rcu::flavor::{DefaultFlavor, RcuFlavor};
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;

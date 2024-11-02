@@ -1,14 +1,14 @@
 pub(crate) mod container;
 pub(crate) mod reference;
 
-pub use crate::boxed::reference::*;
+pub use crate::collections::boxed::reference::*;
 
 mod asserts {
     use super::*;
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::boxed::container::*;
+    use crate::collections::boxed::container::*;
     use crate::rcu::flavor::DefaultFlavor;
     use crate::utility::asserts::*;
 

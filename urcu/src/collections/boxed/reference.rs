@@ -15,7 +15,7 @@ use crate::rcu::reference::RcuRef;
 ///
 /// `T` must be [`Send`] because [`Drop::drop`] might execute cleanup in another thread.
 ///
-/// [`RcuBox`]: crate::boxed::container::RcuBox
+/// [`RcuBox`]: crate::collections::boxed::container::RcuBox
 pub struct Ref<T, F>
 where
     T: Send + 'static,
