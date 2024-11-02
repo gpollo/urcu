@@ -7,7 +7,7 @@ use anyhow::Result;
 use crate::collections::hashmap::iterator::Iter;
 use crate::collections::hashmap::raw::RawMap;
 use crate::collections::hashmap::reference::Ref;
-use crate::rcu::default::DefaultFlavor;
+use crate::rcu::default::RcuDefaultFlavor;
 use crate::rcu::flavor::RcuFlavor;
 use crate::{RcuGuard, RcuReadContext, RcuRef};
 
@@ -33,7 +33,7 @@ use crate::{RcuGuard, RcuReadContext, RcuRef};
 /// non-registered thread may drop an `RcuHashMap<T>` without calling any RCU
 /// primitives since lifetime rules prevent any other thread from accessing an
 /// RCU reference.
-pub struct RcuHashMap<K, V, F = DefaultFlavor>(RawMap<K, V, F>)
+pub struct RcuHashMap<K, V, F = RcuDefaultFlavor>(RawMap<K, V, F>)
 where
     K: Send + 'static,
     V: Send + 'static,

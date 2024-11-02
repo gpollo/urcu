@@ -15,7 +15,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::list::container::RcuList;
-    use crate::rcu::default::DefaultFlavor;
+    use crate::rcu::default::RcuDefaultFlavor;
     use crate::rcu::guard::RcuGuardMemb;
     use crate::utility::asserts::*;
 
@@ -23,20 +23,20 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuList<NotSendNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuList<NotSendNotSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(RcuList<NotSendNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuList<NotSendNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuList<SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuList<SendButNotSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuList<SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuList<SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuList<NotSendButSync, DefaultFlavor>: Send);
-        assert_impl_all!(RcuList<NotSendButSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(RcuList<NotSendButSync, RcuDefaultFlavor>: Send);
+        assert_impl_all!(RcuList<NotSendButSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuList<SendAndSync, DefaultFlavor>: Send);
-        assert_impl_all!(RcuList<SendAndSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuList<SendAndSync, RcuDefaultFlavor>: Send);
+        assert_impl_all!(RcuList<SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_list_ref_owned {

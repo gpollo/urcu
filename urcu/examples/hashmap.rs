@@ -35,7 +35,7 @@ impl PublisherThread {
     }
 
     fn run(self) {
-        let context = DefaultContext::rcu_register().unwrap();
+        let context = RcuDefaultContext::rcu_register().unwrap();
         let mut node_count = 0u128;
 
         while !self.exit_signal.load(Ordering::Acquire) {
@@ -53,7 +53,7 @@ impl PublisherThread {
         self.publisher_count.fetch_sub(1, Ordering::Release);
     }
 
-    fn publish(&self, keyset: &[u32], context: &DefaultContext) -> u128 {
+    fn publish(&self, keyset: &[u32], context: &RcuDefaultContext) -> u128 {
         let mut node_inserted = 0u128;
 
         for key in keyset {
@@ -90,7 +90,7 @@ impl ConsumerThread {
     }
 
     fn run(self) {
-        let mut context = DefaultContext::rcu_register().unwrap();
+        let mut context = RcuDefaultContext::rcu_register().unwrap();
         let mut node_count = 0u128;
 
         loop {
@@ -111,7 +111,7 @@ impl ConsumerThread {
         );
     }
 
-    fn consume(&self, keyset: &[u32], context: &mut DefaultContext) -> u128 {
+    fn consume(&self, keyset: &[u32], context: &mut RcuDefaultContext) -> u128 {
         let mut node_removed = 0u128;
 
         for key in keyset {

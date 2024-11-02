@@ -15,7 +15,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::hashmap::container::RcuHashMap;
-    use crate::rcu::default::DefaultFlavor;
+    use crate::rcu::default::RcuDefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_hashmap {
@@ -30,12 +30,12 @@ mod asserts {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Ref<SendButNotSync, SendButNotSync, DefaultFlavor>: Sync);
+        assert_impl_all!(Ref<SendButNotSync, SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendButNotSync, SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(Ref<SendAndSync, SendAndSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Ref<SendAndSync, SendAndSync, DefaultFlavor>: Sync);
+        assert_impl_all!(Ref<SendAndSync, SendAndSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendAndSync, SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_hashmap_ref_owned {
@@ -62,19 +62,19 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, NotSendNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, SendButNotSync,  SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, NotSendButSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Iter<'_, SendAndSync, SendAndSync, RcuDefaultFlavor>: Sync);
     }
 }

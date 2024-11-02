@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 use crate::collections::list::iterator::Iter;
 use crate::collections::list::raw::{RawIter, RawList, RawNode};
 use crate::collections::list::reference::Ref;
-use crate::rcu::default::DefaultFlavor;
+use crate::rcu::default::RcuDefaultFlavor;
 use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
@@ -40,7 +40,7 @@ use crate::utility::*;
 /// It is safe to send an `Arc<RcuList<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuList<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuList<T, F = DefaultFlavor> {
+pub struct RcuList<T, F = RcuDefaultFlavor> {
     raw: RawList<T>,
     mutex: Mutex<()>,
     _unsend: PhantomUnsend<F>,

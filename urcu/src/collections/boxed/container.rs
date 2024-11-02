@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use crate::collections::boxed::reference::Ref;
-use crate::rcu::default::DefaultFlavor;
+use crate::rcu::default::RcuDefaultFlavor;
 use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
@@ -26,7 +26,7 @@ use crate::utility::{PhantomUnsend, PhantomUnsync};
 /// It is safe to send an `Arc<RcuBox<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuBox<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuBox<T, F = DefaultFlavor> {
+pub struct RcuBox<T, F = RcuDefaultFlavor> {
     ptr: AtomicPtr<T>,
     _unsend: PhantomUnsend<F>,
     _unsync: PhantomUnsync<F>,

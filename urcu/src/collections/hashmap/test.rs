@@ -1,6 +1,6 @@
 use crate::collections::hashmap::container::RcuHashMap;
 use crate::rcu::context::{RcuContext, RcuReadContext};
-use crate::rcu::default::DefaultContext;
+use crate::rcu::default::RcuDefaultContext;
 use crate::rcu::reference::RcuRef;
 
 macro_rules! assert_sorted_eq {
@@ -17,7 +17,7 @@ macro_rules! assert_sorted_eq {
 
 #[test]
 fn get() {
-    let context = DefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultContext::rcu_register().unwrap();
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 
@@ -74,7 +74,7 @@ fn get() {
 
 #[test]
 fn contains() {
-    let context = DefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultContext::rcu_register().unwrap();
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 
@@ -124,7 +124,7 @@ fn contains() {
 
 #[test]
 fn iter() {
-    let context = DefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultContext::rcu_register().unwrap();
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 

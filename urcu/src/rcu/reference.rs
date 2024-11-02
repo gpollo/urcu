@@ -294,19 +294,19 @@ mod asserts {
 
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
-    use crate::rcu::default::DefaultFlavor;
+    use crate::rcu::default::RcuDefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_ref {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(RcuBoxRef<SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuBoxRef<SendButNotSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuBoxRef<SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuBoxRef<SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuBoxRef<SendAndSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuBoxRef<SendAndSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuBoxRef<SendAndSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuBoxRef<SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_ref_owned {

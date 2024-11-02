@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::collections::stack::iterator::{Iter, IterRef};
 use crate::collections::stack::raw::{RawNode, RawStack};
 use crate::collections::stack::reference::Ref;
-use crate::rcu::default::DefaultFlavor;
+use crate::rcu::default::RcuDefaultFlavor;
 use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::guard::RcuGuard;
 use crate::utility::*;
@@ -38,7 +38,7 @@ use crate::utility::*;
 /// It is safe to send an `Arc<RcuStack<T>>` to a non-registered RCU thread. A non-registered
 /// thread may drop an `RcuStack<T>` without calling any RCU primitives since lifetime rules
 /// prevent any other thread from accessing a RCU reference.
-pub struct RcuStack<T, F = DefaultFlavor> {
+pub struct RcuStack<T, F = RcuDefaultFlavor> {
     raw: RawStack<T>,
     _unsend: PhantomUnsend<(T, F)>,
     _unsync: PhantomUnsync<(T, F)>,

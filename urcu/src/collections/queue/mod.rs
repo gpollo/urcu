@@ -13,39 +13,39 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::queue::container::RcuQueue;
-    use crate::rcu::default::DefaultFlavor;
+    use crate::rcu::default::RcuDefaultFlavor;
     use crate::utility::asserts::*;
 
     mod rcu_queue {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuQueue<NotSendNotSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(RcuQueue<NotSendNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuQueue<NotSendNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + !Sync
-        assert_impl_all!(RcuQueue<SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(RcuQueue<SendButNotSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuQueue<SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuQueue<SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(RcuQueue<NotSendButSync, DefaultFlavor>: Send);
-        assert_impl_all!(RcuQueue<NotSendButSync, DefaultFlavor>: Sync);
+        assert_not_impl_all!(RcuQueue<NotSendButSync, RcuDefaultFlavor>: Send);
+        assert_impl_all!(RcuQueue<NotSendButSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuQueue<SendAndSync, DefaultFlavor>: Send);
-        assert_impl_all!(RcuQueue<SendAndSync, DefaultFlavor>: Sync);
+        assert_impl_all!(RcuQueue<SendAndSync, RcuDefaultFlavor>: Send);
+        assert_impl_all!(RcuQueue<SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_queue_ref {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(Ref<SendButNotSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Ref<SendButNotSync, DefaultFlavor>: Sync);
+        assert_impl_all!(Ref<SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(Ref<SendAndSync, DefaultFlavor>: Send);
-        assert_not_impl_all!(Ref<SendAndSync, DefaultFlavor>: Sync);
+        assert_impl_all!(Ref<SendAndSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(Ref<SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_queue_ref_owned {
