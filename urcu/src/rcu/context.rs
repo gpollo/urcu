@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 use crate::rcu::callback::{RcuCall, RcuDefer};
 use crate::rcu::flavor::RcuFlavor;
+use crate::rcu::guard::RcuGuard;
 use crate::rcu::poller::RcuPoller;
 use crate::utility::{PhantomUnsend, PhantomUnsync};
 
@@ -69,7 +70,7 @@ pub unsafe trait RcuContext {
 /// leaks and object cleanups that don't happen.
 pub unsafe trait RcuReadContext: RcuContext {
     /// Defines a guard for a RCU critical section.
-    type Guard<'a>: 'a
+    type Guard<'a>: RcuGuard<Flavor = Self::Flavor> + 'a
     where
         Self: 'a;
 
@@ -121,10 +122,7 @@ macro_rules! define_rcu_context {
         /// There can only be 1 instance per thread.
         /// The thread will be registered upon creation.
         /// It will be unregistered upon dropping.
-        ///
-        // TODO: set READ = false
-        // TODO: set DEFER = false
-        pub struct $context<const READ: bool = true, const DEFER: bool = true>(
+        pub struct $context<const READ: bool = false, const DEFER: bool = false>(
             PhantomUnsend,
             PhantomUnsync,
         );

@@ -11,6 +11,7 @@ use std::sync::{Once, RwLock};
 use std::thread::JoinHandle;
 
 use crate::rcu::context::RcuContext;
+use crate::rcu::flavor::RcuFlavor;
 
 /// Defines the cleanup callback signature.
 pub type RcuCleanup<C> = Box<dyn FnOnce(&C) + Send + 'static>;
@@ -177,20 +178,27 @@ impl<C> RcuCleaner<C> {
 macro_rules! impl_cleanup_for_context {
     ($flavor:ident, $context:ident) => {
         static REGISTER_ATEXIT: Once = Once::new();
-        static INSTANCE: RwLock<Option<ThreadHandle<$context>>> = RwLock::new(None);
+        static INSTANCE: RwLock<Option<ThreadHandle<$context<true, true>>>> = RwLock::new(None);
 
         impl RcuCleaner<$flavor> {
             extern "C" fn delete() {
-                ThreadHandle::<$context>::delete(&INSTANCE);
+                ThreadHandle::<$context<true, true>>::delete(&INSTANCE);
             }
 
-            pub fn get() -> RcuCleaner<$context> {
+            pub fn get() -> RcuCleaner<$context<true, true>> {
                 REGISTER_ATEXIT.call_once(|| unsafe {
                     assert_eq!(libc::atexit(Self::delete), 0);
                 });
 
-                let context = Box::new(|| $context::rcu_register().unwrap());
-                ThreadHandle::<$context>::get(&INSTANCE, context)
+                let context = Box::new(|| {
+                    $flavor::rcu_context_builder()
+                        .with_read_context()
+                        .with_defer_context()
+                        .register_thread()
+                        .unwrap()
+                });
+
+                ThreadHandle::<$context<true, true>>::get(&INSTANCE, context)
             }
         }
     };

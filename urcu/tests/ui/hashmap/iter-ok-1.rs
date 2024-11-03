@@ -1,7 +1,7 @@
 use urcu::prelude::*;
 
 fn main() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder().with_read_context().register_thread().unwrap();
 
     let map = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();

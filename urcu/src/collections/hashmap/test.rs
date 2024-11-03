@@ -1,6 +1,7 @@
 use crate::collections::hashmap::container::RcuHashMap;
-use crate::rcu::context::{RcuContext, RcuReadContext};
-use crate::rcu::default::RcuDefaultContext;
+use crate::rcu::context::RcuReadContext;
+use crate::rcu::default::RcuDefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::reference::RcuRef;
 
 macro_rules! assert_sorted_eq {
@@ -17,7 +18,11 @@ macro_rules! assert_sorted_eq {
 
 #[test]
 fn get() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 
@@ -74,7 +79,11 @@ fn get() {
 
 #[test]
 fn contains() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 
@@ -124,7 +133,11 @@ fn contains() {
 
 #[test]
 fn iter() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let hashmap = RcuHashMap::<u32, u32>::new().unwrap();
     let guard = context.rcu_read_lock();
 

@@ -1,10 +1,15 @@
 use crate::collections::queue::container::RcuQueue;
-use crate::rcu::context::{RcuContext, RcuReadContext};
-use crate::rcu::default::RcuDefaultContext;
+use crate::rcu::context::RcuReadContext;
+use crate::rcu::default::RcuDefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 
 #[test]
 fn simple() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let queue = RcuQueue::<u32>::new();
     let guard = context.rcu_read_lock();
 

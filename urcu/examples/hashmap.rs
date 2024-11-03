@@ -35,7 +35,11 @@ impl PublisherThread {
     }
 
     fn run(self) {
-        let context = RcuDefaultContext::rcu_register().unwrap();
+        let context = RcuDefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .register_thread()
+            .unwrap();
+
         let mut node_count = 0u128;
 
         while !self.exit_signal.load(Ordering::Acquire) {
@@ -53,7 +57,10 @@ impl PublisherThread {
         self.publisher_count.fetch_sub(1, Ordering::Release);
     }
 
-    fn publish(&self, keyset: &[u32], context: &RcuDefaultContext) -> u128 {
+    fn publish<C>(&self, keyset: &[u32], context: &C) -> u128
+    where
+        C: RcuReadContext<Flavor = RcuDefaultFlavor>,
+    {
         let mut node_inserted = 0u128;
 
         for key in keyset {
@@ -90,7 +97,12 @@ impl ConsumerThread {
     }
 
     fn run(self) {
-        let mut context = RcuDefaultContext::rcu_register().unwrap();
+        let mut context = RcuDefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .with_defer_context()
+            .register_thread()
+            .unwrap();
+
         let mut node_count = 0u128;
 
         loop {
@@ -111,7 +123,10 @@ impl ConsumerThread {
         );
     }
 
-    fn consume(&self, keyset: &[u32], context: &mut RcuDefaultContext) -> u128 {
+    fn consume<C>(&self, keyset: &[u32], context: &mut C) -> u128
+    where
+        C: RcuReadContext<Flavor = RcuDefaultFlavor> + RcuDeferContext<Flavor = RcuDefaultFlavor>,
+    {
         let mut node_removed = 0u128;
 
         for key in keyset {

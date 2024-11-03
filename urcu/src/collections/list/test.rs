@@ -1,11 +1,16 @@
 use crate::collections::list::container::RcuList;
-use crate::rcu::context::{RcuContext, RcuReadContext};
-use crate::rcu::default::RcuDefaultContext;
+use crate::rcu::context::RcuReadContext;
+use crate::rcu::default::RcuDefaultFlavor;
+use crate::rcu::flavor::RcuFlavor;
 use crate::rcu::reference::RcuRef;
 
 #[test]
 fn peek() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let list = RcuList::<u32>::new();
     let guard = context.rcu_read_lock();
 
@@ -66,7 +71,11 @@ fn peek() {
 
 #[test]
 fn iter() {
-    let context = RcuDefaultContext::rcu_register().unwrap();
+    let context = RcuDefaultFlavor::rcu_context_builder()
+        .with_read_context()
+        .register_thread()
+        .unwrap();
+
     let list = RcuList::<u32>::new();
     let guard = context.rcu_read_lock();
 

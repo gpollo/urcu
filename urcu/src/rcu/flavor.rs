@@ -265,7 +265,7 @@ macro_rules! define_flavor {
                 &RCU_API
             }
 
-            type CleanupContext = $context;
+            type CleanupContext = $context<true, true>;
 
             fn rcu_cleanup(callback: RcuCleanupMut<Self::CleanupContext>) {
                 RcuCleaner::<Self>::get().send_mut(callback);

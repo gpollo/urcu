@@ -21,7 +21,10 @@ impl ReaderThread {
     }
 
     fn run(self) {
-        let context: RcuDefaultContext = RcuDefaultContext::rcu_register().unwrap();
+        let context = RcuDefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .register_thread()
+            .unwrap();
 
         let mut node_count = 0u128;
         let mut total_sum = 0u128;
@@ -110,7 +113,11 @@ impl ConsumerThread {
     }
 
     fn run(self) -> (u128, u128) {
-        let mut context = RcuDefaultContext::rcu_register().unwrap();
+        let mut context = RcuDefaultFlavor::rcu_context_builder()
+            .with_read_context()
+            .with_defer_context()
+            .register_thread()
+            .unwrap();
 
         let mut node_count = 0;
         let mut total_sum = 0u128;

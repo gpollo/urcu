@@ -80,7 +80,8 @@ pub mod default {
         pub type RcuDefaultPoller<'a> = crate::rcu::poller::RcuPollerMemb<'a>;
 
         /// Defines the default RCU context.
-        pub type RcuDefaultContext = crate::rcu::context::RcuContextMemb<true, true>;
+        pub type RcuDefaultContext<const READ: bool = false, const DEFER: bool = false> =
+            crate::rcu::context::RcuContextMemb<READ, DEFER>;
     }
 
     #[cfg(all(not(feature = "flavor-memb"), feature = "flavor-mb"))]
@@ -95,7 +96,8 @@ pub mod default {
         pub type RcuDefaultPoller<'a> = crate::rcu::poller::RcuPollerMb<'a>;
 
         /// Defines the default RCU context.
-        pub type RcuDefaultContext = crate::rcu::context::RcuContextMb<true, true>;
+        pub type RcuDefaultContext<const READ: bool = false, const DEFER: bool = false> =
+            crate::rcu::context::RcuContextMb<READ, DEFER>;
     }
 
     #[cfg(all(
@@ -114,7 +116,8 @@ pub mod default {
         pub type RcuDefaultPoller<'a> = crate::rcu::poller::RcuPollerBp<'a>;
 
         /// Defines the default RCU context.
-        pub type RcuDefaultContext = crate::rcu::context::RcuContextBp<true, true>;
+        pub type RcuDefaultContext<const READ: bool = false, const DEFER: bool = false> =
+            crate::rcu::context::RcuContextBp<READ, DEFER>;
     }
 
     #[cfg(all(
@@ -134,7 +137,8 @@ pub mod default {
         pub type RcuDefaultPoller<'a> = crate::rcu::poller::RcuPollerQsbr<'a>;
 
         /// Defines the default RCU context.
-        pub type RcuDefaultContext = crate::rcu::context::RcuContextQsbr<true, true>;
+        pub type RcuDefaultContext<const READ: bool = false, const DEFER: bool = false> =
+            crate::rcu::context::RcuContextQsbr<READ, DEFER>;
     }
 
     #[cfg(feature = "flavor-memb")]
