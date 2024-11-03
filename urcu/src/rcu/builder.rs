@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use crate::rcu::context::RcuContext;
-
 pub struct RcuContextBuilder<F, const READ: bool = false, const DEFER: bool = false>(
     PhantomData<F>,
 );
@@ -33,7 +31,7 @@ mod bp {
 
     impl<const READ: bool, const DEFER: bool> RcuContextBuilder<RcuFlavorBp, READ, DEFER> {
         pub fn register_thread(self) -> Option<RcuContextBp<READ, DEFER>> {
-            RcuContextBp::<READ, DEFER>::rcu_register()
+            RcuContextBp::<READ, DEFER>::new()
         }
     }
 }
@@ -47,7 +45,7 @@ mod mb {
 
     impl<const READ: bool, const DEFER: bool> RcuContextBuilder<RcuFlavorMb, READ, DEFER> {
         pub fn register_thread(self) -> Option<RcuContextMb<READ, DEFER>> {
-            RcuContextMb::<READ, DEFER>::rcu_register()
+            RcuContextMb::<READ, DEFER>::new()
         }
     }
 }
@@ -61,7 +59,7 @@ mod memb {
 
     impl<const READ: bool, const DEFER: bool> RcuContextBuilder<RcuFlavorMemb, READ, DEFER> {
         pub fn register_thread(self) -> Option<RcuContextMemb<READ, DEFER>> {
-            RcuContextMemb::<READ, DEFER>::rcu_register()
+            RcuContextMemb::<READ, DEFER>::new()
         }
     }
 }
@@ -75,7 +73,7 @@ mod qsbr {
 
     impl<const READ: bool, const DEFER: bool> RcuContextBuilder<RcuFlavorQsbr, READ, DEFER> {
         pub fn register_thread(self) -> Option<RcuContextQsbr<READ, DEFER>> {
-            RcuContextQsbr::<READ, DEFER>::rcu_register()
+            RcuContextQsbr::<READ, DEFER>::new()
         }
     }
 }

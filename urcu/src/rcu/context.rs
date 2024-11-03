@@ -37,15 +37,6 @@ pub unsafe trait RcuContext {
     where
         Self: 'a;
 
-    /// Register the current thread to RCU.
-    ///
-    /// #### Note
-    ///
-    /// This can only be called once per thread.
-    fn rcu_register() -> Option<Self>
-    where
-        Self: Sized;
-
     /// Waits until the RCU grace period is over.
     ///
     /// #### Note
@@ -132,7 +123,7 @@ macro_rules! define_rcu_context {
             ///
             /// Only the first call will return a context.
             /// Subsequent calls on the same thread will return nothing.
-            fn new() -> Option<Self> {
+            pub(crate) fn new() -> Option<Self> {
                 thread_local! {static RCU_CONTEXT: Cell<bool> = Cell::new(false)};
 
                 RCU_CONTEXT.with(|initialized| {
@@ -209,13 +200,6 @@ macro_rules! define_rcu_context {
             type Flavor = $flavor;
 
             type Poller<'a> = $poller<'a>;
-
-            fn rcu_register() -> Option<Self>
-            where
-                Self: Sized,
-            {
-                Self::new()
-            }
 
             fn rcu_synchronize(&mut self) {
                 // SAFETY: The thread is initialized at context's creation.
