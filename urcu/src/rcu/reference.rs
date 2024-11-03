@@ -206,8 +206,8 @@ unsafe impl<T: Send> Send for BoxRefOwned<T> {}
 /// It is safe to have references from multiple threads if the underlying `T` is `Sync`.
 unsafe impl<T: Sync> Sync for BoxRefOwned<T> {}
 
-/// A RCU reference to a element removed from a container.
-pub struct RcuBoxRef<T, F>
+/// Defines a RCU reference to a element removed from a container.
+pub struct RcuRefBox<T, F>
 where
     T: Send + 'static,
     F: RcuFlavor + 'static,
@@ -217,7 +217,7 @@ where
     _unsync: PhantomUnsync<(T, F)>,
 }
 
-impl<T, F> RcuBoxRef<T, F>
+impl<T, F> RcuRefBox<T, F>
 where
     T: Send,
     F: RcuFlavor,
@@ -236,7 +236,7 @@ where
 /// * The underlying reference is cleaned up upon dropping.
 /// * There may be immutable borrows to the underlying reference.
 /// * There cannot be mutable borrows to the underlying reference.
-unsafe impl<T, F> RcuRef<F> for RcuBoxRef<T, F>
+unsafe impl<T, F> RcuRef<F> for RcuRefBox<T, F>
 where
     T: Send,
     F: RcuFlavor,
@@ -257,14 +257,14 @@ where
 /// #### Safety
 ///
 /// An RCU reference can be sent to another thread if `T` implements [`Send`].
-unsafe impl<T, F> Send for RcuBoxRef<T, F>
+unsafe impl<T, F> Send for RcuRefBox<T, F>
 where
     T: Send,
     F: RcuFlavor,
 {
 }
 
-impl<T, F> Drop for RcuBoxRef<T, F>
+impl<T, F> Drop for RcuRefBox<T, F>
 where
     T: Send + 'static,
     F: RcuFlavor + 'static,
@@ -276,7 +276,7 @@ where
     }
 }
 
-impl<T, F> Deref for RcuBoxRef<T, F>
+impl<T, F> Deref for RcuRefBox<T, F>
 where
     T: Send + Deref,
     F: RcuFlavor,
@@ -301,12 +301,12 @@ mod asserts {
         use super::*;
 
         // T: Send + !Sync
-        assert_impl_all!(RcuBoxRef<SendButNotSync, RcuDefaultFlavor>: Send);
-        assert_not_impl_all!(RcuBoxRef<SendButNotSync, RcuDefaultFlavor>: Sync);
+        assert_impl_all!(RcuRefBox<SendButNotSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuRefBox<SendButNotSync, RcuDefaultFlavor>: Sync);
 
         // T: Send + Sync
-        assert_impl_all!(RcuBoxRef<SendAndSync, RcuDefaultFlavor>: Send);
-        assert_not_impl_all!(RcuBoxRef<SendAndSync, RcuDefaultFlavor>: Sync);
+        assert_impl_all!(RcuRefBox<SendAndSync, RcuDefaultFlavor>: Send);
+        assert_not_impl_all!(RcuRefBox<SendAndSync, RcuDefaultFlavor>: Sync);
     }
 
     mod rcu_ref_owned {

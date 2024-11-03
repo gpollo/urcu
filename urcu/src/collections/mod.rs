@@ -1,3 +1,5 @@
+//! Collections types.
+
 pub mod boxed;
 pub mod hashmap;
 pub mod list;

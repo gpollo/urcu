@@ -9,4 +9,4 @@ pub type RefOwned<T> = reference::BoxRefOwned<RawNode<T>>;
 /// An RCU reference to a element removed from an [`RcuQueue`].
 ///
 /// [`RcuQueue`]: crate::collections::queue::container::RcuQueue
-pub type Ref<T, F> = reference::RcuBoxRef<RawNode<T>, F>;
+pub type Ref<T, F> = reference::RcuRefBox<RawNode<T>, F>;

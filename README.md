@@ -36,16 +36,18 @@ This crate offers optional features. By default, all flavors are included.
 
 ## Types
 
+#### RCU Flavor
+
+Every RCU flavor implements [`RcuFlavor`] which exposes unchecked API to the library calls.
+A data structure will always be tied to a specific flavor. That way, an application using
+multiple flavors cannot use wrong flavor on a data structure.
+
 #### RCU Context
 
 Every thread that does RCU operations needs to be registered. This is enforced through
 the [`RcuContext`] trait. Depending on the RCU flavor, the implementator will be different.
-In all cases, a context can be created using [`RcuContext::rcu_register`].
-
-Currently, all contexts register the thread for read and defer operations. Even if your
-thread don't execute RCU critical sections, it will still be registered for it. It's not
-optimal, but it currenly simplifies things. In the future, it will be possible for threads
-to register only on features it needs.
+In all cases, a context can be configured for read and defer operations using the build
+from [`RcuFlavor::rcu_context_builder`]. 
 
 #### RCU Guard
 
@@ -78,8 +80,13 @@ all supports RCU read traversal.
 ## Example
 
 ```rust
+use urcu::prelude::*;
+
 // register the current thread for RCU operations
-let mut context = RcuContextMemb::rcu_register().unwrap();
+let mut context = RcuDefaultFlavor::rcu_context_builder()
+    .with_read_context()
+    .register_thread()
+    .unwrap();
 
 // create a RCU queue (could be sent to other threads)
 let queue = RcuQueue::<u32>::new();

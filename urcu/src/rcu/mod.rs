@@ -1,3 +1,5 @@
+//! Extra RCU types and functions.
+
 pub(crate) mod builder;
 pub(crate) mod callback;
 pub(crate) mod cleanup;
@@ -6,6 +8,9 @@ pub(crate) mod flavor;
 pub(crate) mod guard;
 pub(crate) mod poller;
 pub(crate) mod reference;
+
+pub use crate::rcu::callback::{RcuCall, RcuCallFn, RcuDefer, RcuDeferFn};
+pub use crate::rcu::reference::RcuRefBox;
 
 /// Returns an immutable RCU-protected pointer.
 ///
@@ -35,14 +40,17 @@ pub unsafe fn dereference_mut<T>(pointer: *mut T) -> *mut T {
     unsafe { urcu_sys::rcu_dereference(pointer as *mut std::ffi::c_void) as *mut T }
 }
 
+/// Defines flavor-specific types for `liburcu-bp`.
 #[cfg(feature = "flavor-bp")]
 pub mod bp {
+
     pub use crate::rcu::context::RcuContextBp;
     pub use crate::rcu::flavor::RcuFlavorBp;
     pub use crate::rcu::guard::RcuGuardBp;
     pub use crate::rcu::poller::RcuPollerBp;
 }
 
+/// Defines flavor-specific types for `liburcu-mb`.
 #[cfg(feature = "flavor-mb")]
 pub mod mb {
     pub use crate::rcu::context::RcuContextMb;
@@ -51,6 +59,7 @@ pub mod mb {
     pub use crate::rcu::poller::RcuPollerMb;
 }
 
+/// Defines flavor-specific types for `liburcu-memb`.
 #[cfg(feature = "flavor-memb")]
 pub mod memb {
     pub use crate::rcu::context::RcuContextMemb;
@@ -59,6 +68,7 @@ pub mod memb {
     pub use crate::rcu::poller::RcuPollerMemb;
 }
 
+/// Defines flavor-specific types for `liburcu-qsbr`.
 #[cfg(feature = "flavor-qsbr")]
 pub mod qsbr {
     pub use crate::rcu::context::RcuContextQsbr;
@@ -67,6 +77,7 @@ pub mod qsbr {
     pub use crate::rcu::poller::RcuPollerQsbr;
 }
 
+/// Defines flavor-specific types for the default flavor.
 pub mod default {
     #[cfg(feature = "flavor-memb")]
     mod memb {
