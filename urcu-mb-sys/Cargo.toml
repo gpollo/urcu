@@ -19,7 +19,7 @@ urcu2-sys = { version = "0.1.8", path = "../urcu-sys" }
 [build-dependencies]
 bindgen = "0.69"
 metadeps = "1"
-urcu2-src = { version = "0.1.5", path = "../urcu-src" }
+urcu2-src = { version = "0.1.6", path = "../urcu-src" }
 
 [features]
 default = []

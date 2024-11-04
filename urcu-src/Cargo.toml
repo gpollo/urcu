@@ -4,7 +4,7 @@ description = "Redistribution of liburcu as a crate"
 homepage = "https://gitlab.com/gabrielpolloguilbert/urcu"
 repository = "https://gitlab.com/gabrielpolloguilbert/urcu"
 license = "LGPL-2.1-only"
-version = "0.1.5+0.14.1"
+version = "0.1.6+0.14.1"
 edition = "2021"
 
 [lib]
