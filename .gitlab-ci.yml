@@ -4,38 +4,24 @@ stages:
   - check
   - release
 
-#############
-# tool jobs #
-#############
-
-image:rust:
-  stage: tool
-  image:
-    name: quay.io/podman/stable:latest
-    docker:
-      user: podman
-  script:
-    - ./.gitlab/build-image.sh rust
-
-image:urcu-shared:
-  needs: [image:rust]
-  stage: tool
-  image:
-    name: quay.io/podman/stable:latest
-    docker:
-      user: podman
-  script:
-    - ./.gitlab/build-image.sh urcu-shared
-
-image:urcu-static:
-  needs: [image:rust]
-  stage: tool
-  image:
-    name: quay.io/podman/stable:latest
-    docker:
-      user: podman
-  script:
-    - ./.gitlab/build-image.sh urcu-static
+include:
+  #####################
+  # docker image jobs #
+  #####################
+  - local: '/.gitlab/templates/build-image.yml'
+    inputs:
+      job-name: image:rust
+      image-name: rust
+  - local: '/.gitlab/templates/build-image.yml'
+    inputs:
+      job-name: image:urcu-shared
+      job-needs: [image:rust]
+      image-name: urcu-shared
+  - local: '/.gitlab/templates/build-image.yml'
+    inputs:
+      job-name: image:urcu-static
+      job-needs: [image:rust]
+      image-name: urcu-static
 
 ##############
 # build jobs #
@@ -167,4 +153,3 @@ gitlab:
   manual_confirmation: 'Are you sure you want to create a Gitlab release?'
   script:
     - ./.gitlab/release-gitlab.sh
-
