@@ -4,6 +4,9 @@ stages:
   - check
   - release
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
@@ -28,9 +31,9 @@ include:
       job-name: image:urcu-static
       job-needs: [image:rust]
       image-name: urcu-static
-  ######################
-  # documentation jobs #
-  ######################
+  ############################
+  # build documentation jobs #
+  ############################
   - local: '/.gitlab/templates/build-doc.yml'
     rules:
       - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
@@ -55,32 +58,20 @@ include:
       job-needs: [image:rust]
       deploy-name: rustdoc/tag/${CI_COMMIT_TAG}
       deploy-url: https://gabrielpolloguilbert.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/target/doc/urcu/index.html
-
-##############
-# build jobs #
-##############
-
-build:urcu-static:
-  needs: [image:urcu-static]
-  stage: build
-  image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-  script:
-    - time cargo build --release --examples --tests --features static
-  artifacts:
-    paths:
-      - target/
-
-build:urcu-shared:
-  needs: [image:urcu-shared]
-  stage: build
-  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
-  script:
-    - time cargo build --release --examples --tests
-  artifacts:
-    paths:
-      - target/
+  ####################
+  # build crate jobs #
+  ####################
+  - local: '/.gitlab/templates/build-crate.yml'
+    inputs:
+      job-name: build:urcu-static
+      job-needs: [image:urcu-static]
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
+      cargo-args: --features static
+  - local: '/.gitlab/templates/build-crate.yml'
+    inputs:
+      job-name: build:urcu-shared
+      job-needs: [image:urcu-shared]
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
 
 ##############
 # check jobs #
@@ -104,8 +95,6 @@ lint:urcu-static:
   needs: [build:urcu-static]
   stage: check
   image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - time cargo clippy --release --features static
 
@@ -120,8 +109,6 @@ test:urcu-static:
   needs: [build:urcu-static]
   stage: check
   image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - time cargo nextest run --release --profile=ci --features static
   artifacts:
@@ -150,8 +137,6 @@ cargo:
   dependencies: []
   stage: release
   image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
   rules:
     - if: $CI_MERGE_REQUEST_ID
       when: never
