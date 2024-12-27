@@ -1,0 +1,24 @@
+spec:
+  inputs:
+    job-name:
+      type: string
+    job-needs:
+      type: array
+      default: []
+    job-stage:
+      type: string
+      default: check
+    job-image:
+      type: string
+    cargo-args:
+      type: string
+      default: ''
+
+---
+
+$[[ inputs.job-name ]]:
+  needs: $[[ inputs.job-needs ]]
+  stage: $[[ inputs.job-stage ]]
+  image: $[[ inputs.job-image ]]
+  script:
+    - time cargo clippy --release $[[ inputs.cargo-args ]]
