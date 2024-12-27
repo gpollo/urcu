@@ -4,6 +4,12 @@ stages:
   - check
   - release
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
 include:
   #####################
   # docker image jobs #
@@ -22,6 +28,33 @@ include:
       job-name: image:urcu-static
       job-needs: [image:rust]
       image-name: urcu-static
+  ######################
+  # documentation jobs #
+  ######################
+  - local: '/.gitlab/templates/build-doc.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    inputs:
+      job-name: doc:urcu-static
+      job-needs: [image:rust]
+      deploy-name: rustdoc/merge-request/${CI_MERGE_REQUEST_IID}
+      deploy-url: https://gabrielpolloguilbert.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/target/doc/urcu/index.html
+  - local: '/.gitlab/templates/build-doc.yml'
+    rules:
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    inputs:
+      job-name: doc:urcu-static
+      job-needs: [image:rust]
+      deploy-name: rustdoc/branch/${CI_COMMIT_BRANCH}
+      deploy-url: https://gabrielpolloguilbert.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/target/doc/urcu/index.html
+  - local: '/.gitlab/templates/build-doc.yml'
+    rules:
+      - if: $CI_COMMIT_TAG
+    inputs:
+      job-name: doc:urcu-static
+      job-needs: [image:rust]
+      deploy-name: rustdoc/tag/${CI_COMMIT_TAG}
+      deploy-url: https://gabrielpolloguilbert.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/target/doc/urcu/index.html
 
 ##############
 # build jobs #
@@ -48,19 +81,6 @@ build:urcu-shared:
   artifacts:
     paths:
       - target/
-
-doc:urcu-static:
-  needs: [image:rust]
-  stage: build
-  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
-  variables:
-    DOCS_RS:
-    RUSTDOCFLAGS: -D warnings
-  script:
-    - time cargo doc --features static
-  artifacts:
-    paths:
-      - target/doc/
 
 ##############
 # check jobs #
