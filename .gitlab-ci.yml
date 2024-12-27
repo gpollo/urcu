@@ -86,6 +86,20 @@ include:
       job-name: lint:urcu-shared
       job-needs: [build:urcu-shared]
       job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+  ###################
+  # test crate jobs #
+  ###################
+  - local: '/.gitlab/templates/test-crate.yml'
+    inputs:
+      job-name: test:urcu-static
+      job-needs: [build:urcu-static]
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
+      cargo-args: --features static
+  - local: '/.gitlab/templates/test-crate.yml'
+    inputs:
+      job-name: test:urcu-shared
+      job-needs: [build:urcu-shared]
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
 
 ##############
 # check jobs #
@@ -104,30 +118,6 @@ format:
   image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
   script:
     - time cargo fmt --check
-
-test:urcu-static:
-  needs: [build:urcu-static]
-  stage: check
-  image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
-  script:
-    - time cargo nextest run --release --profile=ci --features static
-  artifacts:
-    paths:
-      - target/nextest/ci/junit.xml
-    reports:
-      junit: target/nextest/ci/junit.xml
-
-test:urcu-shared:
-  needs: [build:urcu-shared]
-  stage: check
-  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
-  script:
-    - time cargo nextest run --release --profile=ci
-  artifacts:
-    paths:
-      - target/nextest/ci/junit.xml
-    reports:
-      junit: target/nextest/ci/junit.xml
 
 ################
 # release jobs #
