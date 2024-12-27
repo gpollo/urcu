@@ -1,6 +1,6 @@
 spec:
   inputs:
-    job-name:
+    job-subname:
       type: string
     job-needs:
       type: array
@@ -16,7 +16,14 @@ spec:
 
 ---
 
-$[[ inputs.job-name ]]:
+lint:$[[ inputs.job-subname ]]:
+  needs: $[[ inputs.job-needs ]]
+  stage: $[[ inputs.job-stage ]]
+  image: $[[ inputs.job-image ]]
+  script:
+    - time cargo clippy --release $[[ inputs.cargo-args ]]
+
+test:$[[ inputs.job-subname ]]:
   needs: $[[ inputs.job-needs ]]
   stage: $[[ inputs.job-stage ]]
   image: $[[ inputs.job-image ]]

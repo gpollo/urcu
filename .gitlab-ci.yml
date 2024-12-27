@@ -72,38 +72,24 @@ include:
       job-name: build:urcu-shared
       job-needs: [image:urcu-shared]
       job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
-  ###################
-  # lint crate jobs #
-  ###################
-  - local: '/.gitlab/templates/lint-crate.yml'
+  ####################
+  # check crate jobs #
+  ####################
+  - local: '/.gitlab/templates/check-crate.yml'
     inputs:
-      job-name: lint:urcu-static
+      job-subname: urcu-static
       job-needs: [build:urcu-static]
       job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
       cargo-args: --features static
-  - local: '/.gitlab/templates/lint-crate.yml'
+  - local: '/.gitlab/templates/check-crate.yml'
     inputs:
-      job-name: lint:urcu-shared
-      job-needs: [build:urcu-shared]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
-  ###################
-  # test crate jobs #
-  ###################
-  - local: '/.gitlab/templates/test-crate.yml'
-    inputs:
-      job-name: test:urcu-static
-      job-needs: [build:urcu-static]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
-      cargo-args: --features static
-  - local: '/.gitlab/templates/test-crate.yml'
-    inputs:
-      job-name: test:urcu-shared
+      job-subname: urcu-shared
       job-needs: [build:urcu-shared]
       job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
 
-##############
-# check jobs #
-##############
+#######################
+# audit & format jobs #
+#######################
 
 audit:
   needs: [image:rust]
