@@ -17,20 +17,23 @@ include:
   #####################
   # docker image jobs #
   #####################
-  - local: '/.gitlab/templates/build-image.yml'
+  - component: $CI_SERVER_FQDN/gpollo/component-build-image/podman@v0.1.0
     inputs:
       job-name: image:rust
-      image-name: rust
-  - local: '/.gitlab/templates/build-image.yml'
+      job-stage: tool
+      config-file: .gitlab/image-rust/config.yml
+  - component: $CI_SERVER_FQDN/gpollo/component-build-image/podman@v0.1.0
     inputs:
       job-name: image:urcu-shared
+      job-stage: tool
       job-needs: [image:rust]
-      image-name: urcu-shared
-  - local: '/.gitlab/templates/build-image.yml'
+      config-file: .gitlab/image-urcu-shared/config.yml
+  - component: $CI_SERVER_FQDN/gpollo/component-build-image/podman@v0.1.0
     inputs:
       job-name: image:urcu-static
+      job-stage: tool
       job-needs: [image:rust]
-      image-name: urcu-static
+      config-file: .gitlab/image-urcu-static/config.yml
   ############################
   # build documentation jobs #
   ############################
