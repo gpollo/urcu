@@ -21,7 +21,7 @@ lint:$[[ inputs.job-subname ]]:
   stage: $[[ inputs.job-stage ]]
   image: $[[ inputs.job-image ]]
   script:
-    - time cargo clippy --release $[[ inputs.cargo-args ]]
+    - time cargo clippy --release --examples --tests $[[ inputs.cargo-args ]]
 
 test:$[[ inputs.job-subname ]]:
   needs: $[[ inputs.job-needs ]]
