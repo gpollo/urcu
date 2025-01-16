@@ -15,8 +15,7 @@ mod asserts {
     use static_assertions::{assert_impl_all, assert_not_impl_all};
 
     use crate::collections::list::container::RcuList;
-    use crate::rcu::default::RcuDefaultFlavor;
-    use crate::rcu::guard::RcuGuardMemb;
+    use crate::rcu::default::{RcuDefaultFlavor, RcuDefaultGuard};
     use crate::utility::asserts::*;
 
     mod rcu_list {
@@ -63,39 +62,39 @@ mod asserts {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb, true>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb, true>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuDefaultGuard, true>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuDefaultGuard, true>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb, true>: Send);
-        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb, true>: Sync);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuDefaultGuard, true>: Send);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuDefaultGuard, true>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb, true>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb, true>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuDefaultGuard, true>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuDefaultGuard, true>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb, true>: Send);
-        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb, true>: Sync);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuDefaultGuard, true>: Send);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuDefaultGuard, true>: Sync);
     }
 
     mod rcu_list_iter_backward {
         use super::*;
 
         // T: !Send + !Sync
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb, false>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuGuardMemb, false>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuDefaultGuard, false>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendNotSync, RcuDefaultGuard, false>: Sync);
 
         // T: Send + !Sync
-        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb, false>: Send);
-        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuGuardMemb, false>: Sync);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuDefaultGuard, false>: Send);
+        assert_not_impl_all!(Iter<'_, SendButNotSync, RcuDefaultGuard, false>: Sync);
 
         // T: !Send + Sync
-        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb, false>: Send);
-        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuGuardMemb, false>: Sync);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuDefaultGuard, false>: Send);
+        assert_not_impl_all!(Iter<'_, NotSendButSync, RcuDefaultGuard, false>: Sync);
 
         // T: Send + Sync
-        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb, false>: Send);
-        assert_not_impl_all!(Iter<'_, SendAndSync, RcuGuardMemb, false>: Sync);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuDefaultGuard, false>: Send);
+        assert_not_impl_all!(Iter<'_, SendAndSync, RcuDefaultGuard, false>: Sync);
     }
 }
