@@ -7,7 +7,7 @@ spec:
       default: []
     job-stage:
       type: string
-      default: build
+      default: check
     deploy-name:
       type: string
     deploy-url:
