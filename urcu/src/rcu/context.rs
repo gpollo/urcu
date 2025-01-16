@@ -82,6 +82,27 @@ pub unsafe trait RcuReadContext: RcuContext {
     fn rcu_call<F>(&self, callback: Box<F>)
     where
         F: RcuCall + Send + 'static;
+
+    /// Indicates that this thread is in quiescent state.
+    ///
+    /// #### Note
+    ///
+    /// It cannot be called in a RCU critical section.
+    ///
+    /// It is only useful when using QSBR flavored RCU.
+    fn rcu_quiescent_state(&mut self);
+
+    /// Runs a closure while the RCU read thread is offline.
+    ///
+    /// #### Note
+    ///
+    /// It cannot be called in a RCU critical section.
+    ///
+    /// It is only useful when using QSBR flavored RCU.
+    fn rcu_thread_offline<F, T>(&mut self, func: F) -> T
+    where
+        Self: Sized,
+        F: FnOnce(&mut RcuOfflineContext<Self>) -> T;
 }
 
 /// This trait defines the per-thread RCU defer context.
@@ -102,6 +123,79 @@ pub unsafe trait RcuDeferContext: RcuContext {
     fn rcu_defer<F>(&mut self, callback: Box<F>)
     where
         F: RcuDefer;
+}
+
+/// Defines a RCU context that is offline from reading RCU protected data.
+pub struct RcuOfflineContext<'a, C>(&'a mut C);
+
+impl<C> RcuOfflineContext<'_, C>
+where
+    C: RcuContext,
+{
+    /// Runs a closure while the RCU read thread is online.
+    ///
+    /// #### Note
+    ///
+    /// It is only useful when using QSBR flavored RCU.
+    pub fn rcu_thread_online<F, T>(&mut self, func: F) -> T
+    where
+        F: FnOnce(&mut C) -> T,
+    {
+        // SAFETY: The thread is initialized at context's creation.
+        // SAFETY: The thread is read-registered at context's creation.
+        // SAFETY: The thread cannot is always offline when calling here.
+        // SAFETY: The thread cannot be in a critical section.
+        unsafe { C::Flavor::unchecked_rcu_thread_online() };
+
+        let value = func(self.0);
+
+        // SAFETY: The thread is initialized at context's creation.
+        // SAFETY: The thread is read-registered at context's creation.
+        // SAFETY: The thread cannot read any RCU protected data.
+        // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+        unsafe { C::Flavor::unchecked_rcu_thread_offline() };
+
+        value
+    }
+}
+
+/// #### Safety
+///
+/// Safety is guaranteed by the underlying context.
+unsafe impl<C> RcuContext for RcuOfflineContext<'_, C>
+where
+    C: RcuContext,
+{
+    type Flavor = C::Flavor;
+
+    type Poller<'a>
+        = C::Poller<'a>
+    where
+        Self: 'a,
+        C: 'a;
+
+    fn rcu_synchronize(&mut self) {
+        self.0.rcu_synchronize()
+    }
+
+    fn rcu_synchronize_poller(&self) -> Self::Poller<'_> {
+        self.0.rcu_synchronize_poller()
+    }
+}
+
+/// #### Safety
+///
+/// Safety is guaranteed by the underlying context.
+unsafe impl<C> RcuDeferContext for RcuOfflineContext<'_, C>
+where
+    C: RcuDeferContext,
+{
+    fn rcu_defer<F>(&mut self, callback: Box<F>)
+    where
+        F: RcuDefer,
+    {
+        self.0.rcu_defer(callback)
+    }
 }
 
 macro_rules! define_rcu_context {
@@ -233,6 +327,36 @@ macro_rules! define_rcu_context {
                     // SAFETY: The pointers validity is guaranteed by `RcuCall`.
                     unsafe { $flavor::unchecked_rcu_call(Some(func), head.as_mut()) };
                 });
+            }
+
+            fn rcu_quiescent_state(&mut self) {
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+                unsafe { $flavor::unchecked_rcu_quiescent_state() };
+            }
+
+            fn rcu_thread_offline<F, T>(&mut self, func: F) -> T
+            where
+                Self: Sized,
+                F: FnOnce(&mut RcuOfflineContext<Self>) -> T,
+            {
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The thread cannot read any RCU protected data.
+                // SAFETY: The thread cannot be in a critical section because of `&mut self`.
+                unsafe { $flavor::unchecked_rcu_thread_offline() };
+
+                let mut context = RcuOfflineContext(self);
+                let value = func(&mut context);
+
+                // SAFETY: The thread is initialized at context's creation.
+                // SAFETY: The thread is read-registered at context's creation.
+                // SAFETY: The thread cannot is always offline when calling here.
+                // SAFETY: The thread cannot be in a critical section.
+                unsafe { $flavor::unchecked_rcu_thread_online() };
+
+                value
             }
         }
 

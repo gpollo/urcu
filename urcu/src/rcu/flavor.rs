@@ -105,6 +105,35 @@ pub trait RcuFlavor {
     /// * The thread must not be inside a RCU critical section.
     unsafe fn unchecked_rcu_synchronize();
 
+    /// Indicates that this thread is in quiescent state.
+    ///
+    /// #### Safety
+    ///
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must not be inside a RCU critical section.
+    unsafe fn unchecked_rcu_quiescent_state();
+
+    /// Indicates that this thread is offline.
+    ///
+    /// #### Safety
+    ///
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must not read RCU data until [`RcuFlavor::unchecked_rcu_thread_online`] is called.
+    /// * The thread must not be inside a RCU critical section.
+    unsafe fn unchecked_rcu_thread_offline();
+
+    /// Indicates that this thread is online.
+    ///
+    /// #### Safety
+    ///
+    /// * The thread must be initialized with [`RcuFlavor::unchecked_rcu_init`].
+    /// * The thread must be registered with [`RcuFlavor::unchecked_rcu_read_register_thread`].
+    /// * The thread must have called [`RcuFlavor::unchecked_rcu_thread_offline`] before.
+    /// * The thread must not be inside a RCU critical section.
+    unsafe fn unchecked_rcu_thread_online();
+
     /// Creates an [`RcuPollState`] used for checking if the grace period has ended.
     ///
     /// #### Safety
@@ -242,6 +271,18 @@ macro_rules! define_flavor {
                 urcu_func!($flavor, synchronize_rcu)()
             }
 
+            unsafe fn unchecked_rcu_quiescent_state() {
+                urcu_func!($flavor, quiescent_state)()
+            }
+
+            unsafe fn unchecked_rcu_thread_offline() {
+                urcu_func!($flavor, thread_offline)()
+            }
+
+            unsafe fn unchecked_rcu_thread_online() {
+                urcu_func!($flavor, thread_online)()
+            }
+
             unsafe fn unchecked_rcu_poll_start() -> RcuPollState {
                 urcu_func!($flavor, start_poll_synchronize_rcu)()
             }
@@ -298,11 +339,14 @@ pub(crate) mod bp {
         urcu_bp_defer_unregister_thread,
         urcu_bp_init,
         urcu_bp_poll_state_synchronize_rcu,
+        urcu_bp_quiescent_state,
         urcu_bp_read_lock,
         urcu_bp_read_unlock,
         urcu_bp_register_thread,
         urcu_bp_start_poll_synchronize_rcu,
         urcu_bp_synchronize_rcu,
+        urcu_bp_thread_offline,
+        urcu_bp_thread_online,
         urcu_bp_unregister_thread,
         RCU_API,
     };
@@ -325,11 +369,14 @@ pub(crate) mod mb {
         urcu_mb_defer_unregister_thread,
         urcu_mb_init,
         urcu_mb_poll_state_synchronize_rcu,
+        urcu_mb_quiescent_state,
         urcu_mb_read_lock,
         urcu_mb_read_unlock,
         urcu_mb_register_thread,
         urcu_mb_start_poll_synchronize_rcu,
         urcu_mb_synchronize_rcu,
+        urcu_mb_thread_offline,
+        urcu_mb_thread_online,
         urcu_mb_unregister_thread,
         RCU_API,
     };
@@ -352,11 +399,14 @@ pub(crate) mod memb {
         urcu_memb_defer_unregister_thread,
         urcu_memb_init,
         urcu_memb_poll_state_synchronize_rcu,
+        urcu_memb_quiescent_state,
         urcu_memb_read_lock,
         urcu_memb_read_unlock,
         urcu_memb_register_thread,
         urcu_memb_start_poll_synchronize_rcu,
         urcu_memb_synchronize_rcu,
+        urcu_memb_thread_offline,
+        urcu_memb_thread_online,
         urcu_memb_unregister_thread,
         RCU_API,
     };
@@ -370,25 +420,49 @@ pub(crate) mod memb {
 pub(crate) mod qsbr {
     use super::*;
 
+    use std::os::raw::c_void;
+
     use urcu_qsbr_sys::{
         urcu_qsbr_barrier,
         urcu_qsbr_call_rcu,
-        urcu_qsbr_defer_barrier,
-        urcu_qsbr_defer_rcu,
+        urcu_qsbr_defer_barrier as urcu_qsbr_defer_barrier_inner,
+        urcu_qsbr_defer_rcu as urcu_qsbr_defer_rcu_inner,
         urcu_qsbr_defer_register_thread,
         urcu_qsbr_defer_unregister_thread,
         urcu_qsbr_init,
         urcu_qsbr_poll_state_synchronize_rcu,
+        urcu_qsbr_quiescent_state,
         urcu_qsbr_read_lock,
         urcu_qsbr_read_unlock,
         urcu_qsbr_register_thread,
         urcu_qsbr_start_poll_synchronize_rcu,
         urcu_qsbr_synchronize_rcu,
+        urcu_qsbr_thread_offline,
+        urcu_qsbr_thread_online,
         urcu_qsbr_unregister_thread,
         RCU_API,
     };
 
     use crate::rcu::context::RcuContextQsbr;
+
+    unsafe fn urcu_qsbr_defer_barrier() {
+        // From manual testing, this prevents deadlocks. This should be safe, because the thread
+        // must never hold any references to RCU protected data when it waits for deferred processing.
+        urcu_qsbr_thread_offline();
+        urcu_qsbr_defer_barrier_inner();
+        urcu_qsbr_thread_online();
+    }
+
+    unsafe fn urcu_qsbr_defer_rcu(
+        fct: Option<unsafe extern "C" fn(p: *mut c_void)>,
+        p: *mut c_void,
+    ) {
+        // From manual testing, this prevents deadlocks. This should be safe, because the thread
+        // must never hold any references to RCU protected data when it defers processing.
+        urcu_qsbr_thread_offline();
+        urcu_qsbr_defer_rcu_inner(fct, p);
+        urcu_qsbr_thread_online();
+    }
 
     define_flavor!(RcuFlavorQsbr, qsbr, RcuContextQsbr);
 }
