@@ -32,10 +32,8 @@ impl ReaderThread {
         loop {
             context.rcu_quiescent_state();
 
-            if self.list.is_empty() {
-                if self.publisher_count.load(Ordering::Acquire) == 0 {
-                    break;
-                }
+            if self.list.is_empty() && self.publisher_count.load(Ordering::Acquire) == 0 {
+                break;
             }
 
             let guard = context.rcu_read_lock();
@@ -183,8 +181,8 @@ impl ExitHandler {
         let (tx, rx) = std::sync::mpsc::channel();
 
         ctrlc::set_handler(move || {
-            println!("");
-            if let Err(_) = tx.send(()) {
+            println!();
+            if tx.send(()).is_err() {
                 log::error!("failed to send Ctrl+C signal");
             }
         })
@@ -195,13 +193,11 @@ impl ExitHandler {
 
     fn wait_for(&self, duration: Duration) {
         if duration.is_zero() {
-            if let Err(_) = self.0.recv() {
+            if self.0.recv().is_err() {
                 log::error!("Ctrl+C handler unexpectedly disconnected");
             }
-        } else {
-            if let Err(RecvTimeoutError::Disconnected) = self.0.recv_timeout(duration) {
-                log::error!("Ctrl+C handler unexpectedly disconnected");
-            }
+        } else if let Err(RecvTimeoutError::Disconnected) = self.0.recv_timeout(duration) {
+            log::error!("Ctrl+C handler unexpectedly disconnected");
         }
     }
 }
