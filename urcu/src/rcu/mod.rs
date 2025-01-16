@@ -10,6 +10,7 @@ pub(crate) mod poller;
 pub(crate) mod reference;
 
 pub use crate::rcu::callback::{RcuCall, RcuCallFn, RcuDefer, RcuDeferFn};
+pub use crate::rcu::context::RcuOfflineContext;
 pub use crate::rcu::reference::RcuRefBox;
 
 /// Returns an immutable RCU-protected pointer.
@@ -43,7 +44,6 @@ pub unsafe fn dereference_mut<T>(pointer: *mut T) -> *mut T {
 /// Defines flavor-specific types for `liburcu-bp`.
 #[cfg(feature = "flavor-bp")]
 pub mod bp {
-
     pub use crate::rcu::context::RcuContextBp;
     pub use crate::rcu::flavor::RcuFlavorBp;
     pub use crate::rcu::guard::RcuGuardBp;

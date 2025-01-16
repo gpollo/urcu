@@ -12,7 +12,7 @@ pub use crate::collections::list::container::RcuList;
 pub use crate::collections::queue::container::RcuQueue;
 pub use crate::collections::stack::container::RcuStack;
 pub use crate::rcu::cleanup::{RcuCleanup, RcuCleanupMut};
-pub use crate::rcu::context::{RcuContext, RcuDeferContext, RcuOfflineContext, RcuReadContext};
+pub use crate::rcu::context::{RcuContext, RcuDeferContext, RcuReadContext};
 pub use crate::rcu::flavor::RcuFlavor;
 pub use crate::rcu::guard::RcuGuard;
 pub use crate::rcu::poller::RcuPoller;
