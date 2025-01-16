@@ -1,5 +1,5 @@
 [![Repository](https://img.shields.io/badge/Repository-Gitlab-blue?style=for-the-badge&logo=gitlab
-)](https://gitlab.com/gabrielpolloguilbert/urcu)
+)](https://gitlab.com/gpollo/urcu)
 [![Latest Version](https://img.shields.io/crates/v/urcu2?style=for-the-badge&logo=rust)](https://crates.io/crates/urcu2)
 [![Latest Documentation](https://img.shields.io/docsrs/urcu2?style=for-the-badge&logo=rust)](https://docs.rs/urcu2/latest/urcu/)
 

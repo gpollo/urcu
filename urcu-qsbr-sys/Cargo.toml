@@ -1,8 +1,8 @@
 [package]
 name = "urcu2-qsbr-sys"
 description = "Bindings to liburcu-qsbr"
-homepage = "https://gitlab.com/gabrielpolloguilbert/urcu"
-repository = "https://gitlab.com/gabrielpolloguilbert/urcu"
+homepage = "https://gitlab.com/gpollo/urcu"
+repository = "https://gitlab.com/gpollo/urcu"
 license = "GPL-3.0-or-later"
 version = "0.1.3-pre"
 edition = "2021"
