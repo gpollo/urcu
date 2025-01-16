@@ -236,18 +236,18 @@ macro_rules! define_rcu_context {
                     // SAFETY: It is the first RCU call for a thread.
                     unsafe { $flavor::unchecked_rcu_init() };
 
+                    if DEFER {
+                        // SAFETY: The thread is initialized.
+                        // SAFETY: The thread is not defer-registered.
+                        // SAFETY: The thread is defer-unregistered at context's drop.
+                        unsafe { $flavor::unchecked_rcu_defer_register_thread() };
+                    }
+
                     if READ {
                         // SAFETY: The thread is initialized.
                         // SAFETY: The thread is not read-registered.
                         // SAFETY: The thread is read-unregistered at context's drop.
                         unsafe { $flavor::unchecked_rcu_read_register_thread() };
-                    }
-
-                    if DEFER {
-                        // SAFETY: The thread is initialized.
-                        // SAFETY: The thread is not defer-registered.
-                        // SAFETY: The thread is read-unregistered at context's drop.
-                        unsafe { $flavor::unchecked_rcu_defer_register_thread() };
                     }
 
                     Some(Self(PhantomData, PhantomData))
@@ -264,6 +264,16 @@ macro_rules! define_rcu_context {
                     stringify!($kind),
                 );
 
+                if READ {
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    unsafe { $flavor::unchecked_rcu_call_barrier() };
+
+                    // SAFETY: The thread is initialized at context's creation.
+                    // SAFETY: The thread is read-registered at context's creation.
+                    unsafe { $flavor::unchecked_rcu_read_unregister_thread() };
+                }
+
                 if DEFER {
                     // SAFETY: The thread is initialized at context's creation.
                     // SAFETY: The thread is defer-registered at context's creation.
@@ -273,16 +283,6 @@ macro_rules! define_rcu_context {
                     // SAFETY: The thread is initialized at context's creation.
                     // SAFETY: The thread is defer-registered at context's creation.
                     unsafe { $flavor::unchecked_rcu_defer_unregister_thread() };
-                }
-
-                if READ {
-                    // SAFETY: The thread is initialized at context's creation.
-                    // SAFETY: The thread is read-registered at context's creation.
-                    unsafe { $flavor::unchecked_rcu_call_barrier() };
-
-                    // SAFETY: The thread is initialized at context's creation.
-                    // SAFETY: The thread is read-registered at context's creation.
-                    unsafe { $flavor::unchecked_rcu_read_unregister_thread() };
                 }
             }
         }
