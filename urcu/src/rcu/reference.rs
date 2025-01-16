@@ -71,12 +71,12 @@ pub unsafe trait RcuRef<F> {
     ///
     /// #### Note
     ///
-    /// The function might internally call [`RcuContext::rcu_synchronize`] and block.
+    /// The function may internally call [`RcuContext::rcu_synchronize`] and block.
     ///
-    /// The callback is guaranteed to be executed on the current thread.
+    /// The reference must implement [`Send`] since the cleanup may be executed in an helper thread.
     fn defer_cleanup<C>(self, context: &mut C)
     where
-        Self: Sized,
+        Self: Sized + Send,
         C: RcuDeferContext<Flavor = F>,
     {
         context.rcu_defer(RcuDeferFn::<_, F>::new(move || {
