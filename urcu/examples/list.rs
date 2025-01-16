@@ -21,7 +21,7 @@ impl ReaderThread {
     }
 
     fn run(self) {
-        let context = RcuDefaultFlavor::rcu_context_builder()
+        let mut context = RcuDefaultFlavor::rcu_context_builder()
             .with_read_context()
             .register_thread()
             .unwrap();
@@ -30,6 +30,8 @@ impl ReaderThread {
         let mut total_sum = 0u128;
 
         loop {
+            context.rcu_quiescent_state();
+
             if self.list.is_empty() {
                 if self.publisher_count.load(Ordering::Acquire) == 0 {
                     break;
@@ -123,6 +125,8 @@ impl ConsumerThread {
         let mut total_sum = 0u128;
 
         loop {
+            context.rcu_quiescent_state();
+
             let value = self.list.pop_back().unwrap();
 
             if let Some(value) = &value {
@@ -131,6 +135,8 @@ impl ConsumerThread {
             } else if self.publisher_count.load(Ordering::Acquire) == 0 {
                 break;
             }
+
+            context.rcu_quiescent_state();
 
             match node_count % 3 {
                 0 => value.safe_cleanup(),

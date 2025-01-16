@@ -35,7 +35,7 @@ impl PublisherThread {
     }
 
     fn run(self) {
-        let context = RcuDefaultFlavor::rcu_context_builder()
+        let mut context = RcuDefaultFlavor::rcu_context_builder()
             .with_read_context()
             .register_thread()
             .unwrap();
@@ -46,7 +46,7 @@ impl PublisherThread {
             let mut keyset = self.keyset.clone().collect::<Vec<_>>();
             keyset.shuffle(&mut thread_rng());
 
-            node_count += self.publish(&keyset, &context);
+            node_count += self.publish(&keyset, &mut context);
         }
 
         println!(
@@ -57,13 +57,15 @@ impl PublisherThread {
         self.publisher_count.fetch_sub(1, Ordering::Release);
     }
 
-    fn publish<C>(&self, keyset: &[u32], context: &C) -> u128
+    fn publish<C>(&self, keyset: &[u32], context: &mut C) -> u128
     where
         C: RcuReadContext<Flavor = RcuDefaultFlavor>,
     {
         let mut node_inserted = 0u128;
 
         for key in keyset {
+            context.rcu_quiescent_state();
+
             let guard = context.rcu_read_lock();
             let item = self.map.insert(*key, key_to_value(*key), &guard);
             if item.is_none() {
@@ -125,11 +127,15 @@ impl ConsumerThread {
 
     fn consume<C>(&self, keyset: &[u32], context: &mut C) -> u128
     where
-        C: RcuReadContext<Flavor = RcuDefaultFlavor> + RcuDeferContext<Flavor = RcuDefaultFlavor>,
+        C: RcuReadContext<Flavor = RcuDefaultFlavor>
+            + RcuDeferContext<Flavor = RcuDefaultFlavor>
+            + 'static,
     {
         let mut node_removed = 0u128;
 
         for key in keyset {
+            context.rcu_quiescent_state();
+
             let guard = context.rcu_read_lock();
             let item = self.map.remove(&key, &guard);
             if let Some(ref item) = item {
