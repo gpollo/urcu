@@ -68,13 +68,13 @@ include:
     inputs:
       job-name: build:urcu-static
       job-needs: [image:urcu-static]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
       cargo-args: --features static
   - local: '/.gitlab/templates/build-crate.yml'
     inputs:
       job-name: build:urcu-shared
       job-needs: [image:urcu-shared]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
   ####################
   # check crate jobs #
   ####################
@@ -82,13 +82,13 @@ include:
     inputs:
       job-subname: urcu-static
       job-needs: [build:urcu-static]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.1.0-${CI_COMMIT_SHORT_SHA}
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
       cargo-args: --features static
   - local: '/.gitlab/templates/check-crate.yml'
     inputs:
       job-subname: urcu-shared
       job-needs: [build:urcu-shared]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
 
 #######################
 # audit & format jobs #
@@ -97,14 +97,14 @@ include:
 audit:
   needs: [image:rust]
   stage: check
-  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  image: ${CI_REGISTRY_IMAGE}/rust:0.2.0-${CI_COMMIT_SHORT_SHA}
   script:
     - time cargo audit
 
 format:
   needs: [image:rust]
   stage: check
-  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  image: ${CI_REGISTRY_IMAGE}/rust:0.2.0-${CI_COMMIT_SHORT_SHA}
   script:
     - time cargo fmt --check
 
@@ -115,7 +115,7 @@ format:
 cargo:
   dependencies: []
   stage: release
-  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.1.0-${CI_COMMIT_SHORT_SHA}
+  image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
   rules:
     - if: $CI_MERGE_REQUEST_ID
       when: never
@@ -128,7 +128,7 @@ cargo:
 gitlab:
   dependencies: []
   stage: release
-  image: ${CI_REGISTRY_IMAGE}/rust:0.1.0-${CI_COMMIT_SHORT_SHA}
+  image: ${CI_REGISTRY_IMAGE}/rust:0.2.0-${CI_COMMIT_SHORT_SHA}
   rules:
     - if: $CI_MERGE_REQUEST_ID
       when: never

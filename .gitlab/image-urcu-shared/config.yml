@@ -1,5 +1,5 @@
 image-name: ${CI_REGISTRY_IMAGE}/urcu-shared
-image-tag: 0.1.0
+image-tag: 0.2.0
 credentials:
   - registry: ${CI_REGISTRY}
     username: ${CI_REGISTRY_USER}
@@ -7,4 +7,4 @@ credentials:
 dependencies:
   - build-argument: BASE_IMAGE
     image-name: ${CI_REGISTRY_IMAGE}/rust
-    image-tag: 0.1.0
+    image-tag: 0.2.0
