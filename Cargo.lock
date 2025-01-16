@@ -770,7 +770,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-bp-sys"
-version = "0.1.4"
+version = "0.1.5-pre"
 dependencies = [
  "bindgen",
  "metadeps",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-cds-sys"
-version = "0.1.0"
+version = "0.1.1-pre"
 dependencies = [
  "bindgen",
  "cc",
@@ -792,7 +792,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-mb-sys"
-version = "0.1.3"
+version = "0.1.4-pre"
 dependencies = [
  "bindgen",
  "metadeps",
@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-memb-sys"
-version = "0.1.2"
+version = "0.1.3-pre"
 dependencies = [
  "bindgen",
  "metadeps",
@@ -812,7 +812,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-qsbr-sys"
-version = "0.1.2"
+version = "0.1.3-pre"
 dependencies = [
  "bindgen",
  "metadeps",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-src"
-version = "0.1.6+0.14.1"
+version = "0.1.7+0.14.1"
 dependencies = [
  "autotools",
  "bindgen",
@@ -831,7 +831,7 @@ dependencies = [
 
 [[package]]
 name = "urcu2-sys"
-version = "0.1.8"
+version = "0.1.9-pre"
 dependencies = [
  "bindgen",
  "cc",
