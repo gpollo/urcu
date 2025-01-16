@@ -10,7 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Once, RwLock};
 use std::thread::JoinHandle;
 
-use crate::rcu::context::RcuContext;
+use crate::rcu::context::RcuReadContext;
 use crate::rcu::flavor::RcuFlavor;
 
 /// Defines the cleanup callback signature.
@@ -34,7 +34,7 @@ struct Thread<C> {
 
 impl<C> Thread<C>
 where
-    C: 'static,
+    C: RcuReadContext + 'static,
 {
     fn start(context: ContextFn<C>, commands: Receiver<Command<C>>) -> JoinHandle<()> {
         std::thread::Builder::new()
@@ -57,7 +57,7 @@ where
         let mut context = context();
 
         loop {
-            match self.commands.recv() {
+            match context.rcu_thread_offline(|_| self.commands.recv()) {
                 Ok(Command::Execute(callback)) => callback(&context),
                 Ok(Command::ExecuteMut(callback)) => callback(&mut context),
                 Ok(Command::Shutdown) => break,
@@ -84,7 +84,7 @@ struct ThreadHandle<C> {
 
 impl<C> ThreadHandle<C>
 where
-    C: RcuContext + 'static,
+    C: RcuReadContext + 'static,
 {
     fn create(instance: &RwLock<Option<Self>>, context: ContextFn<C>) -> RcuCleaner<C> {
         RcuCleaner(
