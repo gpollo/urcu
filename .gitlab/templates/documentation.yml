@@ -22,6 +22,7 @@ $[[ inputs.job-name ]]:
   variables:
     DOCS_RS:
     RUSTDOCFLAGS: -D warnings
+    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - time cargo doc --features static
   artifacts:

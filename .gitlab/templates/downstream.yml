@@ -21,20 +21,26 @@ workflow:
 build:
   stage: build
   image: $[[ inputs.pipeline-image ]]
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - time cargo build --examples --tests --release $[[ inputs.cargo-args ]]
   artifacts:
     paths:
       - target/
+      - urcu-src/vendor/
 
 build:coverage:
   stage: build
   image: $[[ inputs.pipeline-image ]]
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   script:
     - time cargo llvm-cov nextest-archive --archive-file target/tests.tar.zst --release $[[ inputs.cargo-args ]]
   artifacts:
     paths:
       - target/
+      - urcu-src/vendor/
 
 lint:
   needs: []
