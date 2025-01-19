@@ -69,17 +69,59 @@ include:
     inputs:
       job-name: coverage:fetch
       job-needs:
-        - pipeline:static
-        - pipeline:shared
+        - job: pipeline:static
+          parallel:
+            matrix:
+              - FLAVOR: flavor-bp
+        - job: pipeline:static
+          parallel:
+            matrix:
+              - FLAVOR: flavor-mb
+        - job: pipeline:static
+          parallel:
+            matrix:
+              - FLAVOR: flavor-memb
+        - job: pipeline:static
+          parallel:
+            matrix:
+              - FLAVOR: flavor-qsbr
+        - job: pipeline:shared
+          parallel:
+            matrix:
+              - FLAVOR: flavor-bp
+        - job: pipeline:shared
+          parallel:
+            matrix:
+              - FLAVOR: flavor-mb
+        - job: pipeline:shared
+          parallel:
+            matrix:
+              - FLAVOR: flavor-memb
+        - job: pipeline:shared
+          parallel:
+            matrix:
+              - FLAVOR: flavor-qsbr
       job-stage: merge
       job-artifacts:
         - target/
       config: |
         gitlab-token: $GITLAB_ARTIFACTS_TOKEN
         downstream-pipelines:
-          - trigger-job: pipeline:static
+          - trigger-job: 'pipeline:static: [flavor-bp]'
             downstream-jobs: [test:coverage]
-          - trigger-job: pipeline:shared
+          - trigger-job: 'pipeline:static: [flavor-mb]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:static: [flavor-memb]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:static: [flavor-qsbr]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:shared: [flavor-bp]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:shared: [flavor-mb]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:shared: [flavor-memb]'
+            downstream-jobs: [test:coverage]
+          - trigger-job: 'pipeline:shared: [flavor-qsbr]'
             downstream-jobs: [test:coverage]
   - local: '/.gitlab/templates/coverage.yml'
     rules:
@@ -123,7 +165,10 @@ pipeline:static:
         inputs:
           pipeline-name: static
           pipeline-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
-          cargo-args: --features static
+          cargo-args: --no-default-features --features ${FLAVOR} --features static
+  parallel:
+    matrix:
+      - FLAVOR: [flavor-bp, flavor-mb, flavor-memb, flavor-qsbr]
 
 pipeline:shared:
   needs: [image:urcu-shared]
@@ -135,6 +180,10 @@ pipeline:shared:
         inputs:
           pipeline-name: shared
           pipeline-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
+          cargo-args: --no-default-features --features ${FLAVOR}
+  parallel:
+    matrix:
+      - FLAVOR: [flavor-bp, flavor-mb, flavor-memb, flavor-qsbr]
 
 #######################
 # audit & format jobs #
