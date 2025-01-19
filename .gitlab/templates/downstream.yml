@@ -1,0 +1,48 @@
+spec:
+  inputs:
+    pipeline-name:
+      type: string
+    pipeline-image:
+      type: string
+    cargo-args:
+      type: string
+      default: ''
+
+---
+
+stages:
+  - build
+  - check
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'parent_pipeline'
+
+build:
+  stage: build
+  image: $[[ inputs.pipeline-image ]]
+  script:
+    - time cargo build --examples --tests --release $[[ inputs.cargo-args ]]
+  artifacts:
+    paths:
+      - target/
+
+lint:
+  needs: []
+  stage: check
+  image: $[[ inputs.pipeline-image ]]
+  script:
+    - time cargo clippy --examples --tests --release $[[ inputs.cargo-args ]]
+
+test:
+  needs:
+    - build
+  stage: check
+  image: $[[ inputs.pipeline-image ]]
+  script:
+    - time cargo nextest run --release --profile=ci $[[ inputs.cargo-args ]]
+  artifacts:
+    paths:
+      - target/nextest/ci/junit.xml
+    reports:
+      junit: target/nextest/ci/junit.xml

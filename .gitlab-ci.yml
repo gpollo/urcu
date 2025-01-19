@@ -1,7 +1,7 @@
 stages:
   - tool
-  - build
   - check
+  - trigger
   - release
 
 variables:
@@ -61,34 +61,33 @@ include:
       job-needs: [image:rust]
       deploy-name: rustdoc/tag/${CI_COMMIT_TAG}
       deploy-url: https://gpollo.gitlab.io/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts/target/doc/urcu/index.html
-  ####################
-  # build crate jobs #
-  ####################
-  - local: '/.gitlab/templates/build-crate.yml'
-    inputs:
-      job-name: build:urcu-static
-      job-needs: [image:urcu-static]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
-      cargo-args: --features static
-  - local: '/.gitlab/templates/build-crate.yml'
-    inputs:
-      job-name: build:urcu-shared
-      job-needs: [image:urcu-shared]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
-  ####################
-  # check crate jobs #
-  ####################
-  - local: '/.gitlab/templates/check-crate.yml'
-    inputs:
-      job-subname: urcu-static
-      job-needs: [build:urcu-static]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
-      cargo-args: --features static
-  - local: '/.gitlab/templates/check-crate.yml'
-    inputs:
-      job-subname: urcu-shared
-      job-needs: [build:urcu-shared]
-      job-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
+
+########################
+# downstream pipelines #
+########################
+
+pipeline:static:
+  needs: [image:urcu-static]
+  stage: trigger
+  trigger:
+    strategy: depend
+    include:
+      - local: '/.gitlab/templates/downstream.yml'
+        inputs:
+          pipeline-name: static
+          pipeline-image: ${CI_REGISTRY_IMAGE}/urcu-static:0.2.0-${CI_COMMIT_SHORT_SHA}
+          cargo-args: --features static
+
+pipeline:shared:
+  needs: [image:urcu-shared]
+  stage: trigger
+  trigger:
+    strategy: depend
+    include:
+      - local: '/.gitlab/templates/downstream.yml'
+        inputs:
+          pipeline-name: shared
+          pipeline-image: ${CI_REGISTRY_IMAGE}/urcu-shared:0.2.0-${CI_COMMIT_SHORT_SHA}
 
 #######################
 # audit & format jobs #
