@@ -1,2 +1,11 @@
+[profile.ci]
+default-filter = 'not test(~lifetime)'
+
 [profile.ci.junit]
+path = "junit.xml"
+
+[profile.ci-no-coverage]
+default-filter = 'test(~lifetime)'
+
+[profile.ci-no-coverage.junit]
 path = "junit.xml"

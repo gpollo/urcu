@@ -27,6 +27,15 @@ build:
     paths:
       - target/
 
+build:coverage:
+  stage: build
+  image: $[[ inputs.pipeline-image ]]
+  script:
+    - time cargo llvm-cov nextest-archive --archive-file target/tests.tar.zst --release $[[ inputs.cargo-args ]]
+  artifacts:
+    paths:
+      - target/
+
 lint:
   needs: []
   stage: check
@@ -34,15 +43,29 @@ lint:
   script:
     - time cargo clippy --examples --tests --release $[[ inputs.cargo-args ]]
 
-test:
+test:ui:
   needs:
     - build
   stage: check
   image: $[[ inputs.pipeline-image ]]
   script:
-    - time cargo nextest run --release --profile=ci $[[ inputs.cargo-args ]]
+    - time cargo nextest run --release --profile=ci-no-coverage $[[ inputs.cargo-args ]]
+  artifacts:
+    paths:
+      - target/nextest/ci-no-coverage/junit.xml
+    reports:
+      junit: target/nextest/ci-no-coverage/junit.xml
+
+test:coverage:
+  needs:
+    - build:coverage
+  stage: check
+  image: $[[ inputs.pipeline-image ]]
+  script:
+    - time cargo llvm-cov nextest --profile=ci --no-report --archive-file target/tests.tar.zst
   artifacts:
     paths:
       - target/nextest/ci/junit.xml
+      - target/llvm-cov-target/
     reports:
       junit: target/nextest/ci/junit.xml
