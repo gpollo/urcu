@@ -1,0 +1,34 @@
+spec:
+  inputs:
+    job-name:
+      type: string
+    job-needs:
+      type: array
+      default: []
+    job-stage:
+      type: string
+    deploy-name:
+      type: string
+    deploy-url:
+      type: string
+
+---
+
+$[[ inputs.job-name ]]:
+  needs: $[[ inputs.job-needs ]]
+  stage: $[[ inputs.job-stage ]]
+  image: ${CI_REGISTRY_IMAGE}/rust:0.2.0-${CI_COMMIT_SHORT_SHA}
+  script:
+    - cargo llvm-cov report --release --html
+    - cargo llvm-cov report --release --cobertura > target/llvm-cov/report.xml
+  artifacts:
+    paths:
+      - target/llvm-cov/html
+      - target/llvm-cov/report.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: target/llvm-cov/report.xml
+  environment:
+    name: $[[ inputs.deploy-name ]]
+    url: $[[ inputs.deploy-url ]]
